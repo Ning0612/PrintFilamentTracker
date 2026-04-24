@@ -1,0 +1,25 @@
+# 環境設定（含 token）
+.env
+
+# 輸出資料
+data/*.json
+data/*.csv
+data/*.log
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# CLAUDE
+.claude/
