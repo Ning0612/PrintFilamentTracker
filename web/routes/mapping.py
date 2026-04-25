@@ -11,6 +11,7 @@ from src.filament import (
     list_unmapped,
     read_mapped_filament,
     read_ptf_material,
+    read_spool,
 )
 
 bp = Blueprint("mapping", __name__)
@@ -48,8 +49,10 @@ def map_view(ptf_id: int):
     except (ValueError, SpoolNotFoundError) as exc:
         return _row_error(ptf_id, str(exc))
 
-    spools = list_spools_for_mapping(db_path)
-    spool = next((s for s in spools if s["id"] == spool_id), None)
+    try:
+        spool = read_spool(db_path, spool_id)
+    except SpoolNotFoundError:
+        spool = None
     return render_template("mapping/mapped_row.html", ptf_id=ptf_id, spool=spool)
 
 

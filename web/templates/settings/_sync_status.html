@@ -1,0 +1,16 @@
+<div id="sync-status-area"
+     {% if sync_state.status == 'running' %}
+     hx-get="{{ url_for('settings.sync_status') }}"
+     hx-trigger="every 2s"
+     hx-target="this"
+     hx-swap="outerHTML"
+     {% endif %}
+     style="margin-top:1rem;">
+  {% if sync_state.status == 'running' %}
+    <p aria-busy="true">{{ sync_state.message }}</p>
+  {% elif sync_state.status == 'done' %}
+    <div class="flash flash-success">✓ {{ sync_state.message }}</div>
+  {% elif sync_state.status == 'error' %}
+    <div class="flash flash-error">✗ {{ sync_state.message }}</div>
+  {% endif %}
+</div>

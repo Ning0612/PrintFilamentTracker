@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}設定 — BambuPrintManager{% endblock %}
+
+{% block content %}
+<h1>設定</h1>
+
+<div class="settings-layout">
+
+  <!-- ── Bambu Cloud 帳號 ────────────────────────────── -->
+  <article>
+    <header><strong>Bambu Cloud 帳號</strong></header>
+
+    <p class="token-status-row">
+      {% if has_token %}
+        <span class="status-badge status-active">已連線</span>
+        &ensp;Token：<code class="token-preview">{{ token_masked }}</code>
+        &ensp;區域：<strong>{{ '全球' if region == 'global' else '中國大陸' }}</strong>
+      {% else %}
+        <span class="status-badge status-empty">尚未登入</span>
+        &ensp;請填寫下方表單以取得 Token。
+      {% endif %}
+    </p>
+
+    <div id="login-form-area">
+      {% if has_token %}
+      <details>
+        <summary>重新登入 / 更換帳號</summary>
+        {% include "settings/_login_form.html" %}
+      </details>
+      {% else %}
+      {% include "settings/_login_form.html" %}
+      {% endif %}
+    </div>
+  </article>
+
+  <!-- ── 同步列印歷史 ────────────────────────────────── -->
+  <article>
+    <header><strong>同步列印歷史</strong></header>
+    <p>從 Bambu Cloud 下載最新列印記錄並匯入本機資料庫。已存在的記錄會自動略過（不重複匯入）。</p>
+
+    <form hx-post="{{ url_for('settings.start_sync') }}"
+          hx-target="#sync-status-area"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]"
+          style="margin-bottom:0;">
+      <button type="submit" {% if not has_token %}disabled title="請先登入 Bambu 帳號"{% endif %}>
+        ↻ 立即同步
+      </button>
+    </form>
+
+    {% include "settings/_sync_status.html" %}
+  </article>
+
+</div>
+{% endblock %}

@@ -1,9 +1,12 @@
+import secrets
 from pathlib import Path
 
 from flask import Flask, make_response, send_from_directory
 
-from src.config import load_config
+from src.config import ConfigError, load_config
 from src.db import get_db_path, init_db
+
+_GLOBAL_BASE = "https://api.bambulab.com"
 
 
 def create_app(db_path: Path | None = None) -> Flask:
@@ -13,19 +16,39 @@ def create_app(db_path: Path | None = None) -> Flask:
         static_folder="static",
     )
 
+    env_path = Path(__file__).parent.parent / ".env"
+    app.config["ENV_PATH"] = str(env_path)
+
+    bambu_cfg = None
+    try:
+        bambu_cfg = load_config(env_path)
+    except ConfigError:
+        pass
+
+    if bambu_cfg:
+        app.config["BAMBU_TOKEN"] = bambu_cfg.access_token
+        app.config["BAMBU_REGION"] = bambu_cfg.region
+        app.config["BAMBU_API_BASE"] = bambu_cfg.api_base
+        output_dir = bambu_cfg.output_dir
+    else:
+        app.config["BAMBU_TOKEN"] = ""
+        app.config["BAMBU_REGION"] = "global"
+        app.config["BAMBU_API_BASE"] = _GLOBAL_BASE
+        output_dir = Path(__file__).parent.parent / "data"
+
     if db_path is None:
-        config = load_config()
-        config.output_dir.mkdir(parents=True, exist_ok=True)
-        db_path = get_db_path(config.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        db_path = get_db_path(output_dir)
 
     init_db(db_path)
     app.config["DB_PATH"] = db_path
     app.config["COVERS_DIR"] = (db_path.parent / "covers").resolve()
-    app.secret_key = "bambu-print-manager-local"
+    app.secret_key = secrets.token_hex(32)
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
     from web.routes.dashboard import bp as dashboard_bp
     from web.routes.mapping import bp as mapping_bp
+    from web.routes.settings import bp as settings_bp
     from web.routes.spools import bp as spools_bp
     from web.routes.tasks import bp as tasks_bp
 
@@ -33,6 +56,7 @@ def create_app(db_path: Path | None = None) -> Flask:
     app.register_blueprint(spools_bp, url_prefix="/spools")
     app.register_blueprint(tasks_bp, url_prefix="/tasks")
     app.register_blueprint(mapping_bp, url_prefix="/mapping")
+    app.register_blueprint(settings_bp)
 
     @app.errorhandler(413)
     def request_entity_too_large(e):

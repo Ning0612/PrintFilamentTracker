@@ -20,6 +20,7 @@
         <li><a href="{{ url_for('spools.list_view') }}" {% if request.path.startswith('/spools') %}aria-current="page"{% endif %}>耗材管理</a></li>
         <li><a href="{{ url_for('tasks.list_view') }}" {% if request.path.startswith('/tasks') %}aria-current="page"{% endif %}>列印歷史</a></li>
         <li><a href="{{ url_for('mapping.list_view') }}" {% if request.path.startswith('/mapping') %}aria-current="page"{% endif %}>耗材對照</a></li>
+        <li><a href="{{ url_for('settings.index') }}" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>設定</a></li>
       </ul>
       <ul>
         <li>

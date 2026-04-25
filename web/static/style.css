@@ -103,6 +103,25 @@ button.danger, [type="submit"].danger {
 .overflow-auto { overflow-x: auto; }
 
 
+/* === 設定頁面 === */
+.settings-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+.token-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.token-preview {
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
 /* === 封面縮圖 skeleton === */
 .cover-thumb {
   position: relative;

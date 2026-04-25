@@ -1,0 +1,6 @@
+<div class="flash flash-error" style="margin-bottom:1rem;">{{ error }}</div>
+
+<button type="button" class="outline secondary"
+        hx-get="{{ url_for('settings.login_form') }}"
+        hx-target="#login-form-area"
+        hx-swap="innerHTML">← 重新開始</button>
