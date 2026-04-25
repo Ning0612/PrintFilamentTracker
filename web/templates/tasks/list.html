@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}列印歷史 — BambuPrintManager{% endblock %}
+
+{% block content %}
+<h1>列印歷史</h1>
+
+<form method="get" action="{{ url_for('tasks.list_view') }}" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+  <input type="search" name="q" value="{{ search }}" placeholder="搜尋列印名稱…" style="flex:1;">
+  <button type="submit">搜尋</button>
+  {% if search %}<a href="{{ url_for('tasks.list_view') }}" role="button" class="outline">清除</a>{% endif %}
+</form>
+
+<p style="color:var(--pico-muted-color);">共 {{ total }} 筆記錄</p>
+
+{% if tasks %}
+<div class="overflow-auto">
+<table>
+  <thead>
+    <tr>
+      <th>列印名稱</th>
+      <th>印表機</th>
+      <th>開始時間</th>
+      <th>耗時</th>
+      <th>用量</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td><a href="{{ url_for('tasks.detail_view', task_id=t.id) }}">{{ t.print_name or '(未命名)' }}</a></td>
+      <td>{{ t.printer_name or '-' }}</td>
+      <td>{{ (t.started_at or '')[:16] }}</td>
+      <td>
+        {% if t.duration_seconds %}
+          {{ t.duration_seconds // 3600 }}h {{ (t.duration_seconds % 3600) // 60 }}m
+        {% else %}-{% endif %}
+      </td>
+      <td>{{ '%.1f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if total_pages > 1 %}
+<nav style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;">
+  {% if page > 1 %}
+  <a href="{{ url_for('tasks.list_view', page=page-1, q=search) }}" role="button" class="outline">← 上一頁</a>
+  {% endif %}
+  <span style="line-height:2.5rem;">{{ page }} / {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="{{ url_for('tasks.list_view', page=page+1, q=search) }}" role="button" class="outline">下一頁 →</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<p>無符合條件的記錄。</p>
+{% endif %}
+{% endblock %}

@@ -2,9 +2,7 @@
 .env
 
 # 輸出資料
-data/*.json
-data/*.csv
-data/*.log
+data/*
 !data/.gitkeep
 
 # Python

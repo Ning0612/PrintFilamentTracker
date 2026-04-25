@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}耗材管理 — BambuPrintManager{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;">
+  <h1>耗材管理</h1>
+  <a href="{{ url_for('spools.new_view') }}" role="button">+ 新增耗材</a>
+</div>
+
+{% if spools %}
+<div class="overflow-auto">
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>顏色</th>
+      <th>材料</th>
+      <th>色號</th>
+      <th>初始重量</th>
+      <th>已使用</th>
+      <th>剩餘</th>
+      <th>狀態</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in spools %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>
+        {% if s.color_hex %}
+        <span class="color-swatch" style="background:{{ s.color_hex }};"></span>
+        {% endif %}
+        {{ s.color_name or '-' }}
+      </td>
+      <td>{{ s.material or '-' }}</td>
+      <td><code>{{ s.color_hex or '-' }}</code></td>
+      <td>{{ '%.0f' % s.initial_weight_g }}g</td>
+      <td>{{ '%.1f' % s.used_weight_g }}g</td>
+      <td>
+        <div class="progress-bar-container" title="{{ '%.1f' % s.remaining_weight_g }}g 剩餘">
+          {% set pct = [[(s.remaining_weight_g / s.initial_weight_g * 100) | round | int, 0] | max, 100] | min %}
+          <div class="progress-bar {{ s.status }}" style="width:{{ pct }}%"></div>
+        </div>
+        {{ '%.1f' % s.remaining_weight_g }}g
+      </td>
+      <td><span class="status-badge status-{{ s.status }}">{{ s.status }}</span></td>
+      <td>
+        <a href="{{ url_for('spools.edit_view', spool_id=s.id) }}" role="button" class="outline" style="padding:0.3rem 0.6rem;font-size:0.85rem;">編輯</a>
+        <form method="post" action="{{ url_for('spools.delete_view', spool_id=s.id) }}" style="display:inline;" onsubmit="return confirm('確定刪除此耗材？');">
+          <button type="submit" class="outline danger" style="padding:0.3rem 0.6rem;font-size:0.85rem;">刪除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>尚無耗材記錄。點擊右上角「新增耗材」開始管理。</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,93 @@
+/* === 統計卡格 === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.stats-grid article {
+  text-align: center;
+  padding: 1rem;
+}
+.stats-grid article header {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0;
+}
+.unmapped-alert {
+  border: 2px solid var(--pico-del-color);
+}
+
+/* === 狀態顏色 === */
+.status-active  { color: #2d8a4e; }
+.status-low     { color: #c17f00; }
+.status-empty   { color: #c0392b; }
+.status-sealed  { color: #666; }
+
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.status-badge.status-active { background: #d4edda; color: #155724; }
+.status-badge.status-low    { background: #fff3cd; color: #856404; }
+.status-badge.status-empty  { background: #f8d7da; color: #721c24; }
+.status-badge.status-sealed { background: #e2e3e5; color: #383d41; }
+
+/* === 進度條 === */
+.progress-bar-container {
+  background: #e9ecef;
+  border-radius: 4px;
+  height: 8px;
+  width: 80px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.4rem;
+}
+.progress-bar {
+  background: #2d8a4e;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.progress-bar.low   { background: #c17f00; }
+.progress-bar.empty { background: #c0392b; }
+
+/* === 顏色色塊 === */
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.15);
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* === Flash 訊息 === */
+.flash {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+}
+.flash-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+.flash-error   { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+
+/* === mapping 已完成列 === */
+.mapped-row { opacity: 0.6; }
+
+/* === 危險按鈕 === */
+button.danger, [type="submit"].danger {
+  --pico-background-color: transparent;
+  --pico-border-color: var(--pico-del-color);
+  --pico-color: var(--pico-del-color);
+}
+
+/* === 表格捲動容器 === */
+.overflow-auto { overflow-x: auto; }

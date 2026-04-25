@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BambuPrintManager{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="container-fluid">
+    <nav>
+      <ul>
+        <li><strong>🐼 BambuPrintManager</strong></li>
+      </ul>
+      <ul>
+        <li><a href="{{ url_for('dashboard.index') }}" {% if request.path == '/' %}aria-current="page"{% endif %}>儀表板</a></li>
+        <li><a href="{{ url_for('spools.list_view') }}" {% if request.path.startswith('/spools') %}aria-current="page"{% endif %}>耗材管理</a></li>
+        <li><a href="{{ url_for('tasks.list_view') }}" {% if request.path.startswith('/tasks') %}aria-current="page"{% endif %}>列印歷史</a></li>
+        <li><a href="{{ url_for('mapping.list_view') }}" {% if request.path.startswith('/mapping') %}aria-current="page"{% endif %}>Mapping</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="container" style="margin-top:1.5rem;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="container-fluid" style="margin-top:3rem;padding:1rem;border-top:1px solid var(--pico-muted-border-color);color:var(--pico-muted-color);font-size:0.85rem;">
+    BambuPrintManager — 本機耗材管理工具
+  </footer>
+</body>
+</html>

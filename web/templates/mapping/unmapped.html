@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}未 Mapping 耗材 — BambuPrintManager{% endblock %}
+
+{% block content %}
+<h1>未 Mapping 耗材</h1>
+
+{% if not spools %}
+<div role="alert">
+  ⚠ 目前沒有任何 spool 記錄。請先至
+  <a href="{{ url_for('spools.new_view') }}">耗材管理</a>
+  新增耗材後再進行 mapping。
+</div>
+{% endif %}
+
+{% if unmapped %}
+<p style="color:var(--pico-muted-color);">共 {{ unmapped | length }} 筆未 mapping 記錄，請為每筆選擇對應的耗材線圈。</p>
+<div class="overflow-auto">
+<table id="mapping-table">
+  <thead>
+    <tr>
+      <th>列印任務</th>
+      <th>日期</th>
+      <th>材料</th>
+      <th>顏色</th>
+      <th>用量</th>
+      <th>選擇 Spool</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in unmapped %}
+    <tr id="ptf-row-{{ r.id }}">
+      <td><a href="{{ url_for('tasks.detail_view', task_id=r.print_task_id) }}">{{ r.print_name or '(未命名)' }}</a></td>
+      <td>{{ (r.started_at or '')[:10] }}</td>
+      <td>{{ r.material or '-' }}</td>
+      <td>
+        {% if r.color_hex %}
+        <span class="color-swatch" style="background:{{ r.color_hex }};"></span>
+        {% endif %}
+        <code>{{ r.color_hex or '-' }}</code>
+      </td>
+      <td>{{ '%.1f' % r.used_weight_g if r.used_weight_g else '-' }}g</td>
+      <td>
+        <select name="spool_id" id="spool-select-{{ r.id }}" {% if not spools %}disabled{% endif %}>
+          <option value="">— 選擇 spool —</option>
+          {% for s in spools %}
+          <option value="{{ s.id }}">
+            [{{ s.id }}] {{ s.color_name or s.color_hex or '-' }} {{ s.material or '' }} (剩{{ '%.0f' % s.remaining_weight_g }}g)
+          </option>
+          {% endfor %}
+        </select>
+      </td>
+      <td>
+        <button
+          hx-post="{{ url_for('mapping.map_view', ptf_id=r.id) }}"
+          hx-include="#spool-select-{{ r.id }}"
+          hx-target="#ptf-row-{{ r.id }}"
+          hx-swap="outerHTML"
+          {% if not spools %}disabled{% endif %}
+        >確認</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>✅ 所有耗材記錄均已 mapping，沒有待處理項目。</p>
+{% endif %}
+{% endblock %}

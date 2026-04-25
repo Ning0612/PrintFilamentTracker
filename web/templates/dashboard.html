@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}儀表板 — BambuPrintManager{% endblock %}
+
+{% block content %}
+<h1>儀表板</h1>
+
+<div class="stats-grid">
+  <article>
+    <header>耗材總數</header>
+    <p class="stat-number">{{ stats.total }}</p>
+  </article>
+  <article>
+    <header><span class="status-active">● 使用中</span></header>
+    <p class="stat-number">{{ stats.active }}</p>
+  </article>
+  <article>
+    <header><span class="status-low">● 剩餘偏低</span></header>
+    <p class="stat-number">{{ stats.low }}</p>
+  </article>
+  <article>
+    <header><span class="status-sealed">● 未開封</span></header>
+    <p class="stat-number">{{ stats.sealed }}</p>
+  </article>
+  <article>
+    <header><span class="status-empty">● 已用盡</span></header>
+    <p class="stat-number">{{ stats.empty }}</p>
+  </article>
+  {% if unmapped_count > 0 %}
+  <article class="unmapped-alert">
+    <header>⚠ 未 Mapping</header>
+    <p class="stat-number">
+      <a href="{{ url_for('mapping.list_view') }}">{{ unmapped_count }}</a>
+    </p>
+  </article>
+  {% endif %}
+</div>
+
+<h2 style="margin-top:2rem;">最近列印</h2>
+{% if recent_tasks %}
+<div class="overflow-auto">
+<table>
+  <thead>
+    <tr>
+      <th>列印名稱</th>
+      <th>印表機</th>
+      <th>開始時間</th>
+      <th>耗時</th>
+      <th>用量</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in recent_tasks %}
+    <tr>
+      <td><a href="{{ url_for('tasks.detail_view', task_id=t.id) }}">{{ t.print_name or '(未命名)' }}</a></td>
+      <td>{{ t.printer_name or '-' }}</td>
+      <td>{{ (t.started_at or '')[:16] }}</td>
+      <td>{{ (t.duration_seconds // 3600) if t.duration_seconds else 0 }}h {{ ((t.duration_seconds % 3600) // 60) if t.duration_seconds else 0 }}m</td>
+      <td>{{ '%.1f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>尚無列印記錄。請執行 <code>python -m src.main import --from-file</code> 匯入資料。</p>
+{% endif %}
+{% endblock %}
