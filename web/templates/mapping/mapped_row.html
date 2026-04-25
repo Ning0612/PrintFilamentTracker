@@ -2,7 +2,7 @@
   <td colspan="5" style="color:var(--pico-muted-color);">已 mapping</td>
   <td>
     {% if spool %}
-    <span class="color-swatch" style="background:{{ spool.color_hex or '#ccc' }};"></span>
+    <span class="color-swatch" style="--swatch-color:{{ spool.color_hex or '#cccccc' }};"></span>
     [{{ spool.id }}] {{ spool.color_name or spool.color_hex or '-' }} {{ spool.material or '' }}
     {% endif %}
   </td>

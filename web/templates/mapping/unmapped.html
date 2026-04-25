@@ -35,7 +35,7 @@
       <td>{{ r.material or '-' }}</td>
       <td>
         {% if r.color_hex %}
-        <span class="color-swatch" style="background:{{ r.color_hex }};"></span>
+        <span class="color-swatch" style="--swatch-color:{{ r.color_hex }};"></span>
         {% endif %}
         <code>{{ r.color_hex or '-' }}</code>
       </td>

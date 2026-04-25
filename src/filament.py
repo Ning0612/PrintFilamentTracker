@@ -58,6 +58,15 @@ def _validate_spool_data(data: dict) -> None:
     except (ValueError, TypeError):
         raise SpoolValidationError("initial_weight_g 必須為數字。")
 
+    color_hex = data.get("color_hex")
+    if color_hex is not None:
+        if len(color_hex) != 7 or color_hex[0] != "#":
+            raise SpoolValidationError("color_hex 格式不正確，請使用 #RRGGBB 格式（例如 #A6A9AA）。")
+        try:
+            int(color_hex[1:], 16)
+        except ValueError:
+            raise SpoolValidationError("color_hex 格式不正確，請使用 #RRGGBB 格式（例如 #A6A9AA）。")
+
 
 # --- CRUD ---
 

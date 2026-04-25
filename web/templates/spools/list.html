@@ -29,7 +29,7 @@
       <td>{{ s.id }}</td>
       <td>
         {% if s.color_hex %}
-        <span class="color-swatch" style="background:{{ s.color_hex }};"></span>
+        <span class="color-swatch" style="--swatch-color:{{ s.color_hex }};"></span>
         {% endif %}
         {{ s.color_name or '-' }}
       </td>

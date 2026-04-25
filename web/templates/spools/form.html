@@ -19,7 +19,15 @@
   <div class="grid">
     <label>
       色號（HEX）
-      <input type="text" name="color_hex" value="{{ spool.color_hex if spool else '' }}" placeholder="#A6A9AA">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.3rem;">
+        <input type="color" id="color_picker"
+               value="{{ spool.color_hex if spool and spool.color_hex else '#808080' }}"
+               style="width:3rem;height:2.4rem;padding:0.1rem 0.2rem;border-radius:4px;cursor:pointer;border:var(--pico-border-width,1px) solid var(--pico-border-color);">
+        <input type="text" id="color_hex" name="color_hex"
+               value="{{ spool.color_hex if spool and spool.color_hex else '' }}"
+               placeholder="#A6A9AA（留空則不儲存）"
+               style="flex:1;margin-bottom:0;">
+      </div>
     </label>
     <label>
       初始重量（g）<span style="color:red;">*</span>
@@ -59,4 +67,19 @@
     <a href="{{ url_for('spools.list_view') }}" role="button" class="outline">取消</a>
   </div>
 </form>
+
+<script>
+(function () {
+  var picker = document.getElementById('color_picker');
+  var text   = document.getElementById('color_hex');
+  picker.addEventListener('input', function () {
+    text.value = this.value.toUpperCase();
+  });
+  text.addEventListener('input', function () {
+    if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) {
+      picker.value = this.value;
+    }
+  });
+}());
+</script>
 {% endblock %}
