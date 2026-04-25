@@ -148,11 +148,69 @@ button.danger, [type="submit"].danger {
   transition: opacity 0.25s ease;
 }
 .cover-thumb img.img-loaded { opacity: 1; }
-.cover-thumb--sm { width: 80px;  height: 80px; }
-.cover-thumb--md { width: 96px;  height: 96px; }
+.cover-thumb.loaded::before { display: none; }
+.cover-thumb--sm { width: 120px; height: 120px; }
+.cover-thumb--md { width: 144px; height: 144px; }
 .cover-thumb--lg {
-  max-width: 400px;
+  max-width: 600px;
   aspect-ratio: 4 / 3;
   margin-bottom: 1.5rem;
 }
 .cover-thumb--lg img { object-fit: contain; }
+
+/* 可點擊放大提示 */
+.cover-thumb[data-lightbox] {
+  cursor: zoom-in;
+}
+.cover-thumb[data-lightbox]::after {
+  content: '⤢';
+  position: absolute;
+  bottom: 4px;
+  right: 5px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+  pointer-events: none;
+}
+.cover-thumb[data-lightbox]:hover::after { opacity: 1; }
+
+/* === Lightbox 全螢幕預覽 === */
+#cover-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.82);
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+#cover-lightbox.open { display: flex; }
+#cover-lightbox img {
+  max-width: min(92vw, 900px);
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+#cover-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  opacity: 0.7;
+}
+#cover-lightbox-close:hover { opacity: 1; }

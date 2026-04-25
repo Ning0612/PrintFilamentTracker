@@ -31,6 +31,11 @@
     </nav>
   </header>
 
+  <div id="cover-lightbox" role="dialog" aria-modal="true" aria-label="封面圖預覽">
+    <button id="cover-lightbox-close" aria-label="關閉">×</button>
+    <img id="cover-lightbox-img" src="" alt="">
+  </div>
+
   <main class="container-fluid" style="margin-top:1.5rem;">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
@@ -46,9 +51,36 @@
   </footer>
 <script>
 (function () {
+  var lb    = null;
+  var lbImg = null;
+
+  function openLightbox(src, alt) {
+    lbImg.src = src;
+    lbImg.alt = alt || '';
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lb.classList.remove('open');
+    document.body.style.overflow = '';
+    lbImg.src = '';
+  }
+
   function initCoverThumbs(root) {
     (root || document).querySelectorAll('.cover-thumb img').forEach(function (img) {
-      function done() { img.classList.add('img-loaded'); }
+      function done() {
+        img.classList.add('img-loaded');
+        var thumb = img.closest('.cover-thumb');
+        if (thumb) thumb.classList.add('loaded');
+        if (thumb && !thumb.dataset.lightboxBound) {
+          thumb.dataset.lightbox = '1';
+          thumb.dataset.lightboxBound = '1';
+          thumb.addEventListener('click', function () {
+            if (img.classList.contains('img-loaded')) openLightbox(img.src, img.alt);
+          });
+        }
+      }
       function fail() { img.classList.add('img-error'); img.style.display = 'none'; }
       if (img.complete) { img.naturalWidth > 0 ? done() : fail(); }
       else {
@@ -57,7 +89,22 @@
       }
     });
   }
-  document.addEventListener('DOMContentLoaded', function () { initCoverThumbs(); });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    lb    = document.getElementById('cover-lightbox');
+    lbImg = document.getElementById('cover-lightbox-img');
+
+    document.getElementById('cover-lightbox-close').addEventListener('click', closeLightbox);
+    lb.addEventListener('click', function (e) {
+      if (e.target === lb) closeLightbox();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+    });
+
+    initCoverThumbs();
+  });
+
   document.addEventListener('htmx:afterSwap', function (e) { initCoverThumbs(e.detail.target); });
 }());
 </script>
