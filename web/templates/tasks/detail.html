@@ -5,14 +5,14 @@
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">
   <a href="{{ url_for('tasks.list_view') }}">← 返回列表</a>
   {% if task.is_manual %}
-  <div style="display:flex;gap:0.5rem;align-items:center;">
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
     <span class="manual-badge" style="font-size:0.85rem;">手動任務</span>
     <a href="{{ url_for('tasks.edit_manual', task_id=task.id) }}" role="button" class="outline secondary"
-       style="padding:0.3rem 0.8rem;font-size:0.85rem;">編輯</a>
+       style="padding:0.3rem 0.8rem;font-size:0.85rem;margin:0;">編輯</a>
     <form method="post" action="{{ url_for('tasks.delete_manual', task_id=task.id) }}"
-          onsubmit="return confirm('確定刪除此手動任務？');" style="margin:0;">
+          onsubmit="return confirm('確定刪除此手動任務？');" style="margin:0;display:flex;">
       <button type="submit" class="danger outline"
-              style="padding:0.3rem 0.8rem;font-size:0.85rem;">刪除</button>
+              style="padding:0.3rem 0.8rem;font-size:0.85rem;margin:0;">刪除</button>
     </form>
   </div>
   {% endif %}
@@ -37,7 +37,7 @@
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
       <div><small style="color:var(--pico-muted-color);">列印耗時</small><br><strong>{% if task.duration_seconds %}{{ task.duration_seconds // 3600 }}h {{ (task.duration_seconds % 3600) // 60 }}m{% else %}-{% endif %}</strong></div>
-      <div><small style="color:var(--pico-muted-color);">總用量</small><br><strong>{{ '%.1f' % task.total_weight_g if task.total_weight_g else '-' }}g</strong></div>
+      <div><small style="color:var(--pico-muted-color);">總用量</small><br><strong>{{ '%.2f' % task.total_weight_g if task.total_weight_g else '-' }}g</strong></div>
     </div>
     <div style="border-top:1px solid var(--pico-muted-border-color);padding-top:0.75rem;">
       <small style="color:var(--pico-muted-color);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">耗材用量</small>
@@ -64,7 +64,7 @@
               {% endif %}
               {{ f.color_hex or '-' }}
             </td>
-            <td>{{ '%.1f' % f.used_weight_g if f.used_weight_g else '-' }}g</td>
+            <td>{{ '%.2f' % f.used_weight_g if f.used_weight_g else '-' }}g</td>
             <td>
               {% if f.filament_spool_id %}
                 <a href="{{ url_for('spools.edit_view', spool_id=f.filament_spool_id) }}">Spool #{{ f.filament_spool_id }} {{ f.color_name or '' }}</a>

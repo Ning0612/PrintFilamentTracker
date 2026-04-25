@@ -120,6 +120,51 @@ button.danger, [type="submit"].danger {
   color: #a29bfe;
 }
 
+/* === 手動任務表單雙欄佈局 === */
+.task-form-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.task-form-cover-col {
+  position: sticky;
+  top: 1rem;
+}
+.cover-thumb--form-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 240px;
+}
+.cover-thumb--form-preview img { object-fit: cover; }
+.cover-thumb--form-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 240px;
+  border: 2px dashed var(--pico-muted-border-color);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-thumb--form-placeholder::after {
+  content: '無封面';
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+@media (max-width: 680px) {
+  .task-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .task-form-cover-col {
+    position: static;
+  }
+  .cover-thumb--form-preview,
+  .cover-thumb--form-placeholder {
+    max-width: 160px;
+  }
+}
+
 /* === 耗材表單列 === */
 .filament-row {
   border: 1px solid var(--pico-muted-border-color);
@@ -129,11 +174,11 @@ button.danger, [type="submit"].danger {
 }
 .filament-row-fields {
   display: grid;
-  grid-template-columns: 60px 1fr 54px 100px 1fr auto;
+  grid-template-columns: 70px 1fr 60px 110px 1fr auto;
   gap: 0.5rem;
   align-items: start;
 }
-@media (max-width: 680px) {
+@media (max-width: 780px) {
   .filament-row-fields {
     grid-template-columns: 1fr 1fr;
   }

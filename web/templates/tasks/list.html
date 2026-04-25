@@ -26,7 +26,7 @@
       <th>開始時間</th>
       <th>耗時</th>
       <th>用量</th>
-      <th style="width:90px;"></th>
+      <th style="width:130px;"></th>
     </tr>
   </thead>
   <tbody>
@@ -52,16 +52,18 @@
           {{ t.duration_seconds // 3600 }}h {{ (t.duration_seconds % 3600) // 60 }}m
         {% else %}-{% endif %}
       </td>
-      <td>{{ '%.1f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
+      <td>{{ '%.2f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
       <td>
         {% if t.is_manual %}
-        <div style="display:flex;gap:0.4rem;">
+        <div style="display:flex;gap:0.4rem;align-items:center;">
           <a href="{{ url_for('tasks.edit_manual', task_id=t.id) }}"
-             role="button" class="outline" style="padding:0.2rem 0.5rem;font-size:0.8rem;">編輯</a>
+             role="button" class="outline"
+             style="padding:0.25rem 0.6rem;font-size:0.8rem;margin:0;white-space:nowrap;">編輯</a>
           <form method="post" action="{{ url_for('tasks.delete_manual', task_id=t.id) }}"
-                onsubmit="return confirm('確定刪除此手動任務？');" style="margin:0;">
+                onsubmit="return confirm('確定刪除此手動任務？');"
+                style="margin:0;display:flex;">
             <button type="submit" class="danger outline"
-                    style="padding:0.2rem 0.5rem;font-size:0.8rem;">刪除</button>
+                    style="padding:0.25rem 0.6rem;font-size:0.8rem;margin:0;white-space:nowrap;">刪除</button>
           </form>
         </div>
         {% endif %}
