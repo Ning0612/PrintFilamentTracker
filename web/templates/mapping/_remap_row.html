@@ -1,0 +1,29 @@
+<tr id="mapped-row-{{ r.id }}">
+  <td colspan="7">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+      <span style="color:var(--pico-muted-color);font-size:0.85rem;">變更耗材：</span>
+      <select name="spool_id" id="remap-spool-{{ r.id }}" style="min-width:200px;margin:0;">
+        <option value="">— 選擇新耗材 —</option>
+        {% for s in spools %}
+        <option value="{{ s.id }}" {% if s.id == r.filament_spool_id %}selected{% endif %}>
+          [{{ s.id }}] {{ s.color_name or s.color_hex or '-' }} {{ s.material or '' }} (剩{{ '%.0f' % s.remaining_weight_g }}g)
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </td>
+  <td style="white-space:nowrap;">
+    <div style="display:flex;gap:0.25rem;">
+      <button hx-post="{{ url_for('mapping.remap_view', ptf_id=r.id) }}"
+              hx-include="#remap-spool-{{ r.id }}"
+              hx-target="#mapped-row-{{ r.id }}"
+              hx-swap="outerHTML"
+              style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0;line-height:1.4;">確認</button>
+      <button class="outline"
+              hx-get="{{ url_for('mapping.mapped_row_view', ptf_id=r.id) }}"
+              hx-target="#mapped-row-{{ r.id }}"
+              hx-swap="outerHTML"
+              style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0;line-height:1.4;">取消</button>
+    </div>
+  </td>
+</tr>

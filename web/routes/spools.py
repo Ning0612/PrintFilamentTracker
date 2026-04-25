@@ -21,8 +21,46 @@ bp = Blueprint("spools", __name__)
 @bp.route("/")
 def list_view():
     db_path = current_app.config["DB_PATH"]
-    spools = list_spools(db_path)
-    return render_template("spools/list.html", spools=spools)
+    all_spools = list_spools(db_path)
+
+    materials = sorted({s["material"].strip() for s in all_spools if s.get("material") and s["material"].strip()})
+
+    is_filtered = bool(request.args.get("_filtered"))
+    status_filter = (
+        request.args.getlist("status") if is_filtered else ["sealed", "active", "low"]
+    )
+    material_filter = request.args.get("material", "").strip()
+
+    sort_by = request.args.get("sort_by", "usage_ratio")
+    sort_dir = request.args.get("sort_dir", "desc")
+    if sort_by not in ("usage_ratio", "purchased_at"):
+        sort_by = "usage_ratio"
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    spools = [s for s in all_spools if s["status"] in status_filter]
+    if material_filter:
+        spools = [s for s in spools if (s["material"] or "").strip().lower() == material_filter.strip().lower()]
+
+    reverse = sort_dir == "desc"
+    if sort_by == "usage_ratio":
+        spools.sort(key=lambda s: s["usage_ratio"], reverse=reverse)
+    else:
+        dated = [s for s in spools if s.get("purchased_at")]
+        undated = [s for s in spools if not s.get("purchased_at")]
+        dated.sort(key=lambda s: s["purchased_at"], reverse=reverse)
+        spools = dated + undated
+
+    return render_template(
+        "spools/list.html",
+        spools=spools,
+        total_count=len(all_spools),
+        materials=materials,
+        status_filter=status_filter,
+        material_filter=material_filter,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
 
 
 @bp.route("/new", methods=["GET", "POST"])

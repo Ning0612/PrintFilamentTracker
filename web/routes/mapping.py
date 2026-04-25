@@ -1,12 +1,15 @@
 from flask import Blueprint, current_app, render_template, request
+from markupsafe import escape
 
 from src.filament import (
     SpoolNotFoundError,
     do_map,
+    do_unmap,
     edit_ptf_material,
     list_mapped,
-    list_spools,
+    list_spools_for_mapping,
     list_unmapped,
+    read_mapped_filament,
     read_ptf_material,
 )
 
@@ -21,7 +24,7 @@ def list_view():
         show = "unmapped"
     unmapped = list_unmapped(db_path)
     mapped = list_mapped(db_path)
-    spools = list_spools(db_path)
+    spools = list_spools_for_mapping(db_path)
     return render_template(
         "mapping/unmapped.html",
         unmapped=unmapped,
@@ -45,7 +48,7 @@ def map_view(ptf_id: int):
     except (ValueError, SpoolNotFoundError) as exc:
         return _row_error(ptf_id, str(exc))
 
-    spools = list_spools(db_path)
+    spools = list_spools_for_mapping(db_path)
     spool = next((s for s in spools if s["id"] == spool_id), None)
     return render_template("mapping/mapped_row.html", ptf_id=ptf_id, spool=spool)
 
@@ -82,5 +85,56 @@ def material_cancel(ptf_id: int):
     )
 
 
+@bp.route("/<int:ptf_id>/remap-form")
+def remap_form(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    r = read_mapped_filament(db_path, ptf_id)
+    if r is None:
+        return _mapped_row_error(ptf_id, "找不到已對照的耗材記錄。")
+    spools = list_spools_for_mapping(db_path)
+    return render_template("mapping/_remap_row.html", r=r, spools=spools)
+
+
+@bp.route("/<int:ptf_id>/remap", methods=["POST"])
+def remap_view(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    spool_id_str = request.form.get("spool_id", "").strip()
+    if not spool_id_str:
+        return _mapped_row_error(ptf_id, "請選擇一個 spool。")
+    try:
+        spool_id = int(spool_id_str)
+        do_map(db_path, ptf_id, spool_id)
+    except (ValueError, SpoolNotFoundError) as exc:
+        return _mapped_row_error(ptf_id, str(exc))
+    r = read_mapped_filament(db_path, ptf_id)
+    if r is None:
+        return _mapped_row_error(ptf_id, "對照完成但無法讀取結果。")
+    return render_template("mapping/_mapped_detail_row.html", r=r)
+
+
+@bp.route("/<int:ptf_id>/unmap", methods=["POST"])
+def unmap_view(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    try:
+        do_unmap(db_path, ptf_id)
+    except SpoolNotFoundError:
+        pass
+    return f'<tr id="mapped-row-{ptf_id}" style="display:none;"></tr>'
+
+
+@bp.route("/<int:ptf_id>/mapped-row")
+def mapped_row_view(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    r = read_mapped_filament(db_path, ptf_id)
+    if r is None:
+        return f'<tr id="mapped-row-{ptf_id}" style="display:none;"></tr>'
+    return render_template("mapping/_mapped_detail_row.html", r=r)
+
+
 def _row_error(ptf_id: int, msg: str) -> str:
     return render_template("mapping/error_row.html", ptf_id=ptf_id, msg=msg)
+
+
+def _mapped_row_error(ptf_id: int, msg: str) -> str:
+    safe_msg = escape(msg)
+    return f'<tr id="mapped-row-{ptf_id}"><td colspan="8" style="color:var(--pico-del-color);">⚠ 錯誤：{safe_msg}</td></tr>'

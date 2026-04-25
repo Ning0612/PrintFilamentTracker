@@ -112,11 +112,12 @@
         <th>顏色</th>
         <th>用量</th>
         <th>已對照耗材</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody>
       {% for r in mapped %}
-      <tr>
+      <tr id="mapped-row-{{ r.id }}">
         <td>
           {% if r.cover_url %}
           <div class="cover-thumb cover-thumb--sm">
@@ -140,6 +141,21 @@
           {% endif %}
           {{ r.spool_color_name or r.spool_color_hex or '-' }}
           {% if r.spool_material %}<small style="color:var(--pico-muted-color);"> {{ r.spool_material }}</small>{% endif %}
+        </td>
+        <td style="white-space:nowrap;">
+          <div style="display:flex;gap:0.25rem;">
+            <button class="outline"
+                    hx-get="{{ url_for('mapping.remap_form', ptf_id=r.id) }}"
+                    hx-target="#mapped-row-{{ r.id }}"
+                    hx-swap="outerHTML"
+                    style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0;line-height:1.4;">修改</button>
+            <button class="outline"
+                    hx-post="{{ url_for('mapping.unmap_view', ptf_id=r.id) }}"
+                    hx-target="#mapped-row-{{ r.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="確定要移除此對照嗎？"
+                    style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0;line-height:1.4;color:var(--pico-del-color);">移除</button>
+          </div>
         </td>
       </tr>
       {% endfor %}

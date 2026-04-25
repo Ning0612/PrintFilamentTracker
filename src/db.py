@@ -289,6 +289,19 @@ def get_ptf_material(conn: sqlite3.Connection, ptf_id: int):
     ).fetchone()
 
 
+def get_spool_last_used_map(conn: sqlite3.Connection) -> dict:
+    rows = conn.execute(
+        """
+        SELECT ptf.filament_spool_id, MAX(pt.started_at) AS last_used_at
+        FROM print_task_filament ptf
+        JOIN print_task pt ON pt.id = ptf.print_task_id
+        WHERE ptf.filament_spool_id IS NOT NULL
+        GROUP BY ptf.filament_spool_id
+        """
+    ).fetchall()
+    return {r["filament_spool_id"]: r["last_used_at"] for r in rows}
+
+
 def get_mapped_filaments(conn: sqlite3.Connection) -> list:
     return conn.execute(
         """
@@ -315,6 +328,35 @@ def update_ptf_material(conn: sqlite3.Connection, ptf_id: int, material) -> int:
         (material, ptf_id),
     )
     return cursor.rowcount
+
+
+def get_mapped_filament_by_id(conn: sqlite3.Connection, ptf_id: int):
+    return conn.execute(
+        """
+        SELECT
+          ptf.id, ptf.print_task_id, ptf.slot_id,
+          ptf.used_weight_g, ptf.color_hex, ptf.material,
+          ptf.filament_spool_id,
+          pt.print_name, pt.started_at, pt.cover_url,
+          fs.color_name AS spool_color_name,
+          fs.color_hex AS spool_color_hex,
+          fs.material AS spool_material
+        FROM print_task_filament ptf
+        JOIN print_task pt ON pt.id = ptf.print_task_id
+        JOIN filament_spool fs ON fs.id = ptf.filament_spool_id
+        WHERE ptf.id = ? AND ptf.filament_spool_id IS NOT NULL
+        """,
+        (ptf_id,),
+    ).fetchone()
+
+
+def unmap_filament(conn: sqlite3.Connection, ptf_id: int) -> None:
+    cursor = conn.execute(
+        "UPDATE print_task_filament SET filament_spool_id=NULL WHERE id=? AND filament_spool_id IS NOT NULL",
+        (ptf_id,),
+    )
+    if cursor.rowcount == 0:
+        raise DatabaseError(f"print_task_filament id={ptf_id} 不存在或已是未對照狀態。")
 
 
 def map_filament_to_spool(conn: sqlite3.Connection, ptf_id: int, spool_id: int) -> None:

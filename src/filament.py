@@ -11,14 +11,17 @@ from .db import (
     delete_spool,
     get_all_spools,
     get_connection,
+    get_mapped_filament_by_id,
     get_mapped_filaments,
     get_ptf_by_id,
     get_ptf_material,
     get_spool_by_id,
+    get_spool_last_used_map,
     get_spool_used_weight,
     get_unmapped_filaments,
     insert_spool,
     map_filament_to_spool,
+    unmap_filament,
     update_ptf_material,
     update_spool,
 )
@@ -174,6 +177,23 @@ def list_unmapped(db_path: Path) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def list_spools_for_mapping(db_path: Path) -> list[dict]:
+    """回傳非已耗盡的耗材，最近被 mapping 使用過的排前面，從未使用的排後面。"""
+    with get_connection(db_path) as conn:
+        rows = get_all_spools(conn)
+        used_map = _get_all_used_weights(conn)
+        last_used_map = get_spool_last_used_map(conn)
+
+    spools = [enrich_spool(row, used_map.get(row["id"], 0.0)) for row in rows]
+    spools = [s for s in spools if s["status"] != "empty"]
+
+    recently_used = [s for s in spools if s["id"] in last_used_map]
+    never_used = [s for s in spools if s["id"] not in last_used_map]
+    recently_used.sort(key=lambda s: last_used_map[s["id"]], reverse=True)
+
+    return recently_used + never_used
+
+
 def list_mapped(db_path: Path) -> list[dict]:
     with get_connection(db_path) as conn:
         rows = get_mapped_filaments(conn)
@@ -193,6 +213,20 @@ def edit_ptf_material(db_path: Path, ptf_id: int, material) -> None:
         affected = update_ptf_material(conn, ptf_id, material)
         if affected == 0:
             raise SpoolNotFoundError(f"耗材記錄 id={ptf_id} 已完成對照，無法修改材料。")
+
+
+def do_unmap(db_path: Path, ptf_id: int) -> None:
+    with get_connection(db_path) as conn:
+        try:
+            unmap_filament(conn, ptf_id)
+        except DatabaseError as exc:
+            raise SpoolNotFoundError(str(exc)) from exc
+
+
+def read_mapped_filament(db_path: Path, ptf_id: int) -> dict | None:
+    with get_connection(db_path) as conn:
+        row = get_mapped_filament_by_id(conn, ptf_id)
+        return dict(row) if row else None
 
 
 def do_map(db_path: Path, ptf_id: int, spool_id: int) -> None:
