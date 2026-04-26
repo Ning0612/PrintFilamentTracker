@@ -555,6 +555,60 @@ def delete_manual_task(conn: sqlite3.Connection, task_id: int) -> bool:
     return True
 
 
+def get_all_mappings_for_export(conn: sqlite3.Connection) -> list:
+    """Fetch all mapped/ignored ptf records using stable cross-system identifiers."""
+    return conn.execute(
+        """
+        SELECT
+          ptf.id, ptf.slot_id, ptf.is_ignored, ptf.mapped_at,
+          pt.external_id AS print_task_external_id,
+          fs.uid AS spool_uid
+        FROM print_task_filament ptf
+        JOIN print_task pt ON pt.id = ptf.print_task_id
+        LEFT JOIN filament_spool fs ON fs.id = ptf.filament_spool_id
+        WHERE ptf.filament_spool_id IS NOT NULL OR ptf.is_ignored = 1
+        ORDER BY pt.external_id, ptf.slot_id
+        """
+    ).fetchall()
+
+
+def get_task_id_by_external_id(conn: sqlite3.Connection, external_id: int) -> int | None:
+    row = conn.execute(
+        "SELECT id FROM print_task WHERE external_id = ?", (external_id,)
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def get_spool_id_by_uid(conn: sqlite3.Connection, uid: str) -> int | None:
+    row = conn.execute(
+        "SELECT id FROM filament_spool WHERE uid = ?", (uid,)
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def get_ptf_row_by_task_and_slot(conn: sqlite3.Connection, print_task_id: int, slot_id) -> sqlite3.Row | None:
+    if slot_id is None:
+        # Fallback case: empty amsDetailMapping creates exactly one ptf with slot_id NULL
+        return conn.execute(
+            "SELECT id, filament_spool_id, is_ignored FROM print_task_filament "
+            "WHERE print_task_id = ? AND slot_id IS NULL LIMIT 1",
+            (print_task_id,),
+        ).fetchone()
+    return conn.execute(
+        "SELECT id, filament_spool_id, is_ignored FROM print_task_filament "
+        "WHERE print_task_id = ? AND slot_id = ? LIMIT 1",
+        (print_task_id, slot_id),
+    ).fetchone()
+
+
+def set_ptf_ignored(conn: sqlite3.Connection, ptf_id: int) -> None:
+    """Force-set ptf to ignored state, clearing any existing spool mapping."""
+    conn.execute(
+        "UPDATE print_task_filament SET filament_spool_id=NULL, is_ignored=1, mapped_at=NULL WHERE id=?",
+        (ptf_id,),
+    )
+
+
 def get_tasks_grouped_by_spool(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
         """

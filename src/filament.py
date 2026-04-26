@@ -9,6 +9,7 @@ from typing import Any
 from .db import (
     DatabaseError,
     delete_spool,
+    get_all_mappings_for_export,
     get_all_spools,
     get_connection,
     get_ignored_filaments,
@@ -16,14 +17,18 @@ from .db import (
     get_mapped_filaments,
     get_ptf_by_id,
     get_ptf_material,
+    get_ptf_row_by_task_and_slot,
     get_spool_by_id,
+    get_spool_id_by_uid,
     get_spool_last_used_map,
     get_spool_used_weight,
+    get_task_id_by_external_id,
     get_tasks_grouped_by_spool,
     get_unmapped_filaments,
     ignore_filament,
     insert_spool,
     map_filament_to_spool,
+    set_ptf_ignored,
     unignore_filament,
     unmap_filament,
     update_ptf_material,
@@ -318,13 +323,25 @@ def _sanitize_csv_value(val) -> str:
 
 def export_spools_json(db_path: Path) -> str:
     with get_connection(db_path) as conn:
-        rows = get_all_spools(conn)
-    spools = [{k: dict(row).get(k) for k in _SPOOL_FIELDS} for row in rows]
+        spool_rows = get_all_spools(conn)
+        mapping_rows = get_all_mappings_for_export(conn)
+    spools = [{k: dict(row).get(k) for k in _SPOOL_FIELDS} for row in spool_rows]
+    mappings = [
+        {
+            "print_task_external_id": dict(r)["print_task_external_id"],
+            "slot_id": dict(r)["slot_id"],
+            "spool_uid": dict(r)["spool_uid"],
+            "is_ignored": dict(r)["is_ignored"],
+            "mapped_at": dict(r)["mapped_at"],
+        }
+        for r in mapping_rows
+    ]
     return json.dumps(
         {
             "version": "1.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "spools": spools,
+            "mappings": mappings,
         },
         ensure_ascii=False,
         indent=2,
@@ -351,7 +368,16 @@ def import_spools_json(db_path: Path, json_str: str) -> dict:
     raw_list = data.get("spools", []) if isinstance(data, dict) else data
     if not isinstance(raw_list, list):
         raise SpoolImportError("JSON 格式錯誤：找不到有效的 spools 陣列。")
-    return _import_spool_list(db_path, raw_list)
+
+    spool_result = _import_spool_list(db_path, raw_list)
+
+    mapping_result: dict[str, Any] = {"applied": 0, "skipped": 0, "failed": 0, "errors": []}
+    if isinstance(data, dict):
+        raw_mappings = data.get("mappings")
+        if isinstance(raw_mappings, list) and raw_mappings:
+            mapping_result = _import_mapping_list(db_path, raw_mappings)
+
+    return {**spool_result, "mappings": mapping_result}
 
 
 def import_spools_csv(db_path: Path, csv_str: str) -> dict:
@@ -362,6 +388,71 @@ def import_spools_csv(db_path: Path, csv_str: str) -> dict:
         for row in reader
     ]
     return _import_spool_list(db_path, raw_list)
+
+
+def _import_mapping_list(db_path: Path, mappings: list) -> dict:
+    applied = 0
+    skipped = 0
+    failed = 0
+    errors: list[str] = []
+    with get_connection(db_path) as conn:
+        for i, m in enumerate(mappings, start=1):
+            try:
+                if not isinstance(m, dict):
+                    raise SpoolValidationError("格式無效，預期為 JSON 物件。")
+                outcome = _apply_one_mapping(conn, m)
+                if outcome == "applied":
+                    applied += 1
+                else:
+                    skipped += 1
+            except (SpoolValidationError, DatabaseError) as exc:
+                errors.append(f"對照第 {i} 筆：{exc}")
+                failed += 1
+            except Exception as exc:
+                errors.append(f"對照第 {i} 筆：未預期錯誤 {exc}")
+                failed += 1
+    return {"applied": applied, "skipped": skipped, "failed": failed, "errors": errors}
+
+
+def _apply_one_mapping(conn, m: dict) -> str:
+    """Apply one mapping record. Returns 'applied' or 'skipped'."""
+    external_id = m.get("print_task_external_id")
+    slot_id = m.get("slot_id")
+    spool_uid = m.get("spool_uid")
+    is_ignored = bool(m.get("is_ignored"))
+
+    if external_id is None:
+        raise SpoolValidationError("缺少 print_task_external_id。")
+
+    task_id = get_task_id_by_external_id(conn, external_id)
+    if task_id is None:
+        return "skipped"
+
+    ptf = get_ptf_row_by_task_and_slot(conn, task_id, slot_id)
+    if ptf is None:
+        return "skipped"
+
+    ptf_dict = dict(ptf)
+    ptf_id = ptf_dict["id"]
+
+    if is_ignored:
+        if ptf_dict["is_ignored"] == 1:
+            return "skipped"
+        set_ptf_ignored(conn, ptf_id)
+        return "applied"
+
+    if not spool_uid:
+        return "skipped"
+
+    spool_id = get_spool_id_by_uid(conn, spool_uid)
+    if spool_id is None:
+        raise SpoolValidationError(f"找不到 spool uid={spool_uid}。")
+
+    if ptf_dict["filament_spool_id"] == spool_id:
+        return "skipped"
+
+    map_filament_to_spool(conn, ptf_id, spool_id)
+    return "applied"
 
 
 def _import_spool_list(db_path: Path, raw_list: list) -> dict:

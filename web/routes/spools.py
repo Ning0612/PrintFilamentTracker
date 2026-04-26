@@ -175,13 +175,21 @@ def import_view():
         flash(str(exc), "error")
         return redirect(url_for("spools.list_view"))
 
-    msg = f"匯入完成：成功 {result['imported']} 筆，略過 {result['skipped']} 筆（已存在），失敗 {result['failed']} 筆。"
-    if result["errors"]:
-        shown = result["errors"][:3]
+    msg = f"匯入完成：耗材 {result['imported']} 筆成功，{result['skipped']} 筆略過，{result['failed']} 筆失敗。"
+    all_errors = list(result.get("errors", []))
+    mr = result.get("mappings")
+    if mr is not None:
+        msg += f" 對照 {mr['applied']} 筆套用，{mr['skipped']} 筆略過，{mr['failed']} 筆失敗。"
+        all_errors += mr.get("errors", [])
+    if all_errors:
+        shown = all_errors[:3]
         msg += " 錯誤：" + "；".join(shown)
-        if len(result["errors"]) > 3:
-            msg += f"...等共 {len(result['errors'])} 個。"
-    category = "success" if result["imported"] > 0 or result["skipped"] > 0 else "error"
+        if len(all_errors) > 3:
+            msg += f"...等共 {len(all_errors)} 個。"
+    any_ok = result["imported"] > 0 or result["skipped"] > 0 or (
+        mr is not None and (mr["applied"] > 0 or mr["skipped"] > 0)
+    )
+    category = "success" if any_ok else "error"
     flash(msg, category)
     return redirect(url_for("spools.list_view"))
 
