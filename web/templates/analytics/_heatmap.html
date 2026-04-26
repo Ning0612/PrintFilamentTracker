@@ -1,0 +1,54 @@
+{% if heatmap.has_data %}
+<div class="heatmap-center-wrap">
+  <div class="heatmap-inner">
+    {# Month labels row #}
+    <div class="heatmap-month-row">
+      {% for label in heatmap.month_labels %}
+      <div class="heatmap-month-cell">{{ label }}</div>
+      {% endfor %}
+    </div>
+
+    {# Grid #}
+    <div class="heatmap-grid">
+      {% for col in heatmap.grid %}
+      <div class="heatmap-col">
+        {% for day in col %}
+          {% if not day.in_year %}
+          <div class="heatmap-cell level-none"></div>
+          {% elif day.future %}
+          <div class="heatmap-cell level-future"></div>
+          {% else %}
+            {% if day.count == 0 %}{% set lvl = 0 %}
+            {% elif day.count <= 2 %}{% set lvl = 1 %}
+            {% elif day.count <= 5 %}{% set lvl = 2 %}
+            {% elif day.count <= 9 %}{% set lvl = 3 %}
+            {% else %}{% set lvl = 4 %}{% endif %}
+          <div class="heatmap-cell level-{{ lvl }}"
+               data-tooltip="{{ day.date }}：{{ day.count }} 次 / {{ day.weight_g }}g"
+               aria-label="{{ day.date }}，{{ day.count }} 次列印"></div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Legend + stats #}
+    <div class="heatmap-footer">
+      <span class="muted-label" style="font-size:.75rem;">
+        共 {{ heatmap.total_tasks }} 次列印 · {{ heatmap.total_days_active }} 天有活躍
+      </span>
+      <div class="heatmap-legend">
+        <span class="muted-label" style="font-size:.72rem;">少</span>
+        <div class="heatmap-cell level-0"></div>
+        <div class="heatmap-cell level-1"></div>
+        <div class="heatmap-cell level-2"></div>
+        <div class="heatmap-cell level-3"></div>
+        <div class="heatmap-cell level-4"></div>
+        <span class="muted-label" style="font-size:.72rem;">多</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<p class="muted-label" style="text-align:center;padding:2rem 0;">{{ heatmap.year }} 年尚無列印資料</p>
+{% endif %}

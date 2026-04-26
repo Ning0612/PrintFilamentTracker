@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   <header class="container-fluid">
@@ -24,6 +25,7 @@
         <li><a href="{{ url_for('printers.list_view') }}" {% if request.path.startswith('/printers') %}aria-current="page"{% endif %}>印表機</a></li>
         <li><a href="{{ url_for('tasks.list_view') }}" {% if request.path.startswith('/tasks') %}aria-current="page"{% endif %}>列印歷史</a></li>
         <li><a href="{{ url_for('mapping.list_view') }}" {% if request.path.startswith('/mapping') %}aria-current="page"{% endif %}>耗材對照</a></li>
+        <li><a href="{{ url_for('analytics.index') }}" {% if request.path.startswith('/analytics') %}aria-current="page"{% endif %}>分析</a></li>
         <li><a href="{{ url_for('settings.index') }}" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>設定</a></li>
         <li>
           <button class="theme-toggle" id="nav-theme-toggle" aria-label="切換深/淺色模式" title="切換主題">

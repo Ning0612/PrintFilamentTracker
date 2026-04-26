@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}分析 — BambuPrintManager{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script>
+window._analyticsData = {
+  material: {{ material | tojson }},
+  trend:    {{ trend    | tojson }},
+  cost:     {{ cost     | tojson }},
+  printers: {{ printers | tojson }},
+};
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1400px;margin:0 auto;">
+  <h2 style="margin-bottom:1.5rem;">分析</h2>
+
+  {# ── 1. 熱力圖（全寬，年份選單） ── #}
+  <article style="margin-bottom:1.5rem;">
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <strong style="white-space:nowrap;">列印活躍度</strong>
+      {% if heatmap.years %}
+      <select id="heatmap-year-select"
+              style="width:auto;margin:0;"
+              hx-get="{{ url_for('analytics.heatmap_fragment') }}"
+              hx-target="#heatmap-container"
+              hx-swap="innerHTML"
+              hx-trigger="change"
+              name="year">
+        {% for y in heatmap.years %}
+        <option value="{{ y }}" {% if y == heatmap.current_year %}selected{% endif %}>{{ y }} 年</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <small class="muted-label" style="white-space:nowrap;">每格代表一天，顏色越深列印次數越多</small>
+    </header>
+
+    <div id="heatmap-container">
+      {% include "analytics/_heatmap.html" %}
+    </div>
+  </article>
+
+  {# ── 2. 材料比例 + 費用分析 ── #}
+  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
+
+    <article>
+      <header><strong>材料類型用量</strong></header>
+      {% if material.has_data %}
+      <div style="max-width:280px;margin:0 auto;">
+        <canvas id="chart-material" height="280"></canvas>
+      </div>
+      <div class="material-legend">
+        {% for i in range(material.labels | length) %}
+        <div class="legend-item">
+          <span class="legend-dot" style="background:{{ material.colors[i] }}"></span>
+          <span>{{ material.labels[i] }}</span>
+          <span class="muted-label">{{ material.data[i] }}g</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">尚無資料</p>
+      {% endif %}
+    </article>
+
+    <article>
+      <header><strong>耗材費用分析</strong></header>
+      {% if cost.priced_spool_count > 0 %}
+      <div style="max-width:340px;margin:0 auto 1rem;">
+        <canvas id="chart-cost" height="200"></canvas>
+      </div>
+      <div class="cost-summary">
+        <div class="cost-item">
+          <span class="cost-label">已消耗費用</span>
+          <span class="cost-value">${{ "%.2f"|format(cost.known_used) }}</span>
+        </div>
+        <div class="cost-item">
+          <span class="cost-label">剩餘庫存價值</span>
+          <span class="cost-value">${{ "%.2f"|format(cost.known_remaining) }}</span>
+        </div>
+        <div class="cost-item cost-total">
+          <span class="cost-label">合計（有定價）</span>
+          <span class="cost-value">${{ "%.2f"|format(cost.known_total) }}</span>
+        </div>
+      </div>
+      {% if cost.unpriced_count > 0 %}
+      <p class="muted-label" style="font-size:.8rem;margin-top:.75rem;">
+        另有 {{ cost.unpriced_count }} 捲耗材未定價（{{ "%.0f"|format(cost.unpriced_initial_g) }}g），不計入上方金額。
+      </p>
+      {% endif %}
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">請先在耗材管理中填寫購買金額</p>
+      {% endif %}
+    </article>
+  </div>
+
+  {# ── 3. 月趨勢 ── #}
+  <article style="margin-bottom:1.5rem;">
+    <header><strong>每月列印趨勢（近 12 個月）</strong></header>
+    {% if trend.has_data %}
+    <canvas id="chart-trend" height="120"></canvas>
+    {% else %}
+    <p class="muted-label" style="text-align:center;padding:2rem 0;">尚無資料</p>
+    {% endif %}
+  </article>
+
+  {# ── 4. 印表機使用率 + 顏色分布 ── #}
+  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
+
+    <article>
+      <header><strong>印表機使用率</strong></header>
+      {% if printers.has_data %}
+      <canvas id="chart-printers" height="220"></canvas>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">尚無資料</p>
+      {% endif %}
+    </article>
+
+    <article>
+      <header><strong>顏色使用分布（Top 15）</strong></header>
+      {% if colors %}
+      <div class="swatch-list">
+        {% set max_g = colors[0].total_g if colors else 1 %}
+        {% for c in colors %}
+        <div class="swatch-row">
+          <div class="swatch-color" style="background:{{ c.color_hex }}" title="{{ c.color_hex }}{% if c.color_name %} · {{ c.color_name }}{% endif %}"></div>
+          <div class="swatch-bar-wrap">
+            <div class="swatch-bar-fill" style="width:{{ [((c.total_g / max_g) * 100)|round|int, 100]|min }}%"></div>
+          </div>
+          <span class="swatch-label">{{ c.color_name or c.material or '未知' }}</span>
+          <span class="muted-label swatch-weight">{{ "%.0f"|format(c.total_g) }}g</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">尚無已 mapping 的耗材顏色資料</p>
+      {% endif %}
+    </article>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  document.addEventListener('DOMContentLoaded', function () {
+    var d = window._analyticsData;
+    var style = getComputedStyle(document.documentElement);
+    var colorMuted  = style.getPropertyValue('--pico-muted-color').trim()        || '#607090';
+    var colorBorder = style.getPropertyValue('--pico-muted-border-color').trim() || '#DDE5F2';
+    var colorCard   = style.getPropertyValue('--pico-card-background-color').trim() || '#fff';
+
+    Chart.defaults.color = colorMuted;
+    Chart.defaults.borderColor = colorBorder;
+    Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
+
+    /* 材料甜甜圈 */
+    var ctxMat = document.getElementById('chart-material');
+    if (ctxMat && d.material.has_data) {
+      new Chart(ctxMat, {
+        type: 'doughnut',
+        data: {
+          labels: d.material.labels,
+          datasets: [{ data: d.material.data, backgroundColor: d.material.colors, borderWidth: 2, borderColor: colorCard }]
+        },
+        options: {
+          cutout: '62%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) {
+              var total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+              var pct = total > 0 ? ((ctx.parsed/total)*100).toFixed(1) : 0;
+              return ' '+ctx.parsed+'g ('+pct+'%)';
+            }}}
+          }
+        }
+      });
+    }
+
+    /* 費用堆疊橫條 */
+    var ctxCost = document.getElementById('chart-cost');
+    if (ctxCost && d.cost.priced_spool_count > 0) {
+      new Chart(ctxCost, {
+        type: 'bar',
+        data: {
+          labels: [''],
+          datasets: [
+            { label: '已消耗', data: [d.cost.known_used], backgroundColor: '#EF4444', borderRadius: 4 },
+            { label: '剩餘庫存', data: [d.cost.known_remaining], backgroundColor: '#10B981', borderRadius: 4 },
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            x: { stacked: true, ticks: { callback: function(v){ return '$'+v; } } },
+            y: { stacked: true, display: false }
+          }
+        }
+      });
+    }
+
+    /* 月趨勢 */
+    var ctxTrend = document.getElementById('chart-trend');
+    if (ctxTrend && d.trend.has_data) {
+      new Chart(ctxTrend, {
+        type: 'bar',
+        data: {
+          labels: d.trend.labels,
+          datasets: [
+            { type: 'line', label: '重量 (g)', data: d.trend.weights, borderColor: '#3B82F6',
+              backgroundColor: 'rgba(59,130,246,0.12)', yAxisID: 'yW', tension: 0.3, fill: true, pointRadius: 3 },
+            { label: '列印次數', data: d.trend.counts, backgroundColor: 'rgba(16,185,129,0.7)', yAxisID: 'yC', borderRadius: 4 }
+          ]
+        },
+        options: {
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            yC: { type: 'linear', position: 'left',  title: { display: true, text: '次數' } },
+            yW: { type: 'linear', position: 'right', title: { display: true, text: '重量 (g)' }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    /* 印表機橫條 */
+    var ctxPrt = document.getElementById('chart-printers');
+    if (ctxPrt && d.printers.has_data) {
+      new Chart(ctxPrt, {
+        type: 'bar',
+        data: {
+          labels: d.printers.labels,
+          datasets: [
+            { label: '列印次數', data: d.printers.tasks, backgroundColor: '#6366F1', borderRadius: 4 },
+            { label: '時長 (h)',  data: d.printers.durations_h, backgroundColor: '#F59E0B', borderRadius: 4 },
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { position: 'bottom' } },
+          scales: { x: { beginAtZero: true } }
+        }
+      });
+    }
+  });
+}());
+</script>
+{% endblock %}

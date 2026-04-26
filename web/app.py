@@ -52,6 +52,7 @@ def create_app(db_path: Path | None = None) -> Flask:
     app.secret_key = secrets.token_hex(32)
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
+    from web.routes.analytics import bp as analytics_bp
     from web.routes.dashboard import bp as dashboard_bp
     from web.routes.mapping import bp as mapping_bp
     from web.routes.printers import bp as printers_bp
@@ -64,6 +65,7 @@ def create_app(db_path: Path | None = None) -> Flask:
     app.register_blueprint(printers_bp, url_prefix="/printers")
     app.register_blueprint(tasks_bp, url_prefix="/tasks")
     app.register_blueprint(mapping_bp, url_prefix="/mapping")
+    app.register_blueprint(analytics_bp, url_prefix="/analytics")
     app.register_blueprint(settings_bp)
 
     from web.routes.settings import start_auto_sync_scheduler
