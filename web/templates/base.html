@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}BambuPrintManager{% endblock %}</title>
   <script>(function(){try{var t=localStorage.getItem('bambu-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -18,10 +21,15 @@
       <ul>
         <li><a href="{{ url_for('dashboard.index') }}" {% if request.path == '/' %}aria-current="page"{% endif %}>儀表板</a></li>
         <li><a href="{{ url_for('spools.list_view') }}" {% if request.path.startswith('/spools') %}aria-current="page"{% endif %}>耗材管理</a></li>
-        <li><a href="{{ url_for('printers.list_view') }}" {% if request.path.startswith('/printers') %}aria-current="page"{% endif %}>印表機管理</a></li>
+        <li><a href="{{ url_for('printers.list_view') }}" {% if request.path.startswith('/printers') %}aria-current="page"{% endif %}>印表機</a></li>
         <li><a href="{{ url_for('tasks.list_view') }}" {% if request.path.startswith('/tasks') %}aria-current="page"{% endif %}>列印歷史</a></li>
         <li><a href="{{ url_for('mapping.list_view') }}" {% if request.path.startswith('/mapping') %}aria-current="page"{% endif %}>耗材對照</a></li>
         <li><a href="{{ url_for('settings.index') }}" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>設定</a></li>
+        <li>
+          <button class="theme-toggle" id="nav-theme-toggle" aria-label="切換深/淺色模式" title="切換主題">
+            <span id="theme-toggle-icon">☾</span>
+          </button>
+        </li>
       </ul>
     </nav>
   </header>
@@ -41,11 +49,31 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="container-fluid" style="margin-top:3rem;padding:1rem;border-top:1px solid var(--pico-muted-border-color);color:var(--pico-muted-color);font-size:0.85rem;">
+  <footer class="container-fluid">
     BambuPrintManager — 本機耗材管理工具
   </footer>
+
 <script>
 (function () {
+  /* ── Theme toggle ── */
+  var THEME_KEY = 'bambu-theme';
+  var html = document.documentElement;
+
+  function getTheme() { return html.getAttribute('data-theme') || 'light'; }
+
+  function applyTheme(t) {
+    html.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    var icon = document.getElementById('theme-toggle-icon');
+    if (icon) icon.textContent = t === 'dark' ? '☀' : '☾';
+    /* Sync settings-page radio buttons if they exist */
+    var radio = document.querySelector('input[name="theme"][value="' + t + '"]');
+    if (radio) radio.checked = true;
+  }
+  /* Expose globally so settings-page radio buttons can trigger icon sync */
+  window.bambuApplyTheme = applyTheme;
+
+  /* ── Lightbox ── */
   var lb    = null;
   var lbImg = null;
 
@@ -62,6 +90,7 @@
     lbImg.src = '';
   }
 
+  /* ── Cover thumb lazy-load + lightbox binding ── */
   function initCoverThumbs(root) {
     (root || document).querySelectorAll('.cover-thumb img').forEach(function (img) {
       function done() {
@@ -86,13 +115,23 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    /* Init theme icon */
+    applyTheme(getTheme());
+
+    /* Theme toggle button */
+    var toggleBtn = document.getElementById('nav-theme-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    /* Lightbox */
     lb    = document.getElementById('cover-lightbox');
     lbImg = document.getElementById('cover-lightbox-img');
 
     document.getElementById('cover-lightbox-close').addEventListener('click', closeLightbox);
-    lb.addEventListener('click', function (e) {
-      if (e.target === lb) closeLightbox();
-    });
+    lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
     });

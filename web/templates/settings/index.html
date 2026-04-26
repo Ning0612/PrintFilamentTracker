@@ -58,8 +58,12 @@
 
       document.querySelectorAll('input[name="theme"]').forEach(function (r) {
         r.addEventListener('change', function () {
-          document.documentElement.setAttribute('data-theme', this.value);
-          try { localStorage.setItem(KEY, this.value); } catch (e) {}
+          if (window.bambuApplyTheme) {
+            window.bambuApplyTheme(this.value);
+          } else {
+            document.documentElement.setAttribute('data-theme', this.value);
+            try { localStorage.setItem(KEY, this.value); } catch (e) {}
+          }
         });
       });
     }());

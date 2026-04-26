@@ -8,8 +8,8 @@
 </div>
 
 <form method="get" action="{{ url_for('tasks.list_view') }}" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-  <input type="search" name="q" value="{{ search }}" placeholder="搜尋列印名稱…" style="flex:1;">
-  <button type="submit">搜尋</button>
+  <input type="search" name="q" value="{{ search }}" placeholder="搜尋列印名稱…" style="flex:1;min-width:0;">
+  <button type="submit" style="width:auto;white-space:nowrap;">搜尋</button>
   {% if search %}<a href="{{ url_for('tasks.list_view') }}" role="button" class="outline">清除</a>{% endif %}
 </form>
 
@@ -20,7 +20,7 @@
 <table>
   <thead>
     <tr>
-      <th style="width:152px;">圖片</th>
+      <th style="width:120px;">圖片</th>
       <th>列印名稱</th>
       <th>印表機</th>
       <th>開始時間</th>
@@ -45,14 +45,14 @@
           <span class="manual-badge">手動</span>
         {% endif %}
       </td>
-      <td>{{ t.printer_name or '-' }}</td>
-      <td>{{ (t.started_at or '')[:16] | replace('T', ' ') }}</td>
-      <td>
+      <td style="white-space:nowrap;">{{ t.printer_name or '-' }}</td>
+      <td style="white-space:nowrap;">{{ (t.started_at or '')[:16] | replace('T', ' ') }}</td>
+      <td style="white-space:nowrap;">
         {% if t.duration_seconds %}
           {{ t.duration_seconds // 3600 }}h {{ (t.duration_seconds % 3600) // 60 }}m
         {% else %}-{% endif %}
       </td>
-      <td>{{ '%.2f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
+      <td style="white-space:nowrap;">{{ '%.2f' % t.total_weight_g if t.total_weight_g else '-' }}g</td>
       <td>
         {% if t.is_manual %}
         <div style="display:flex;gap:0.4rem;align-items:center;">
