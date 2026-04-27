@@ -6,7 +6,9 @@
 ![HTMX](https://img.shields.io/badge/htmx-336699?style=flat-square&logo=htmx&logoColor=white)
 ![Pico CSS](https://img.shields.io/badge/Pico_CSS-0172AD?style=flat-square&logo=css3&logoColor=white)
 
-本地化 Web 系統，用於管理 Bambu Lab 3D 列印機的列印歷史與耗材（Filament Spool）。
+**個人本機工具**，專為單一用戶在自己的電腦上管理 Bambu Lab 3D 列印機的列印歷史與耗材（Filament Spool）。
+
+> **定位說明**：PrintNest 設計為個人本機使用（personal, local, single-user）工具——所有列印歷史與耗材資料僅儲存於您自己的裝置（本機 SQLite），不進行資料蒐集、分析或第三方共享。本軟體仍會透過您的帳號憑證與 Bambu Cloud 通訊以取得列印記錄，詳見 [DISCLAIMER.md](DISCLAIMER.md)。此使用情境與 GDPR Article 2(2)(c) 個人家庭活動豁免條件相符，但能否適用取決於實際使用情境，使用者應自行評估。
 
 > **⚠ 免責聲明**
 > PrintNest 是獨立的社群專案，**與 Bambu Lab Co., Ltd. 無任何關聯、背書或贊助關係**。
@@ -16,6 +18,8 @@
 > - **§3.1** 禁止未經 Bambu Lab 事先同意，使用其技術或 IP 開發第三方軟體
 > - **§3.4** 禁止逆向工程或以任何方式對產品建立衍生品
 > - **§11.1** 違反條款可能導致 **Bambu 帳號被停用**
+>
+> - **2025 年 1 月起**，Bambu Lab 推出 Authorization Control System，於韌體層面限制未授權第三方工具存取（LAN 與 Cloud 雙模式）。未來可能影響本軟體的連線功能。
 >
 > 使用本軟體即代表您自行承擔相關法律與帳號風險。詳見 [DISCLAIMER.md](DISCLAIMER.md)。
 
@@ -105,4 +109,6 @@ PrintNest/
 
 ## License
 
-本專案僅供個人使用，未進行公開授權。
+本專案採用 [PolyForm Noncommercial License 1.0.0](LICENSE) 授權。
+**僅限非商業用途**（個人使用、研究、教育、非營利組織）。
+商業用途需取得授權人書面同意。
