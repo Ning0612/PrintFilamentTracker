@@ -46,6 +46,7 @@ $VenvPython   = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 $VenvPip      = Join-Path $RepoRoot ".venv\Scripts\pip.exe"
 $VenvWaitress = Join-Path $RepoRoot ".venv\Scripts\waitress-serve.exe"
 $StartBat     = Join-Path $PSScriptRoot "start_server.bat"
+$VbsLauncher  = Join-Path $PSScriptRoot "start_hidden.vbs"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Write-Step([string]$msg) { Write-Host "`n[STEP] $msg" -ForegroundColor Cyan }
@@ -165,7 +166,19 @@ if (-not $SkipTaskScheduler) {
         }
     Start-Sleep -Milliseconds 500
 
-    $webAction   = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$StartBat`"" -WorkingDirectory $RepoRoot
+    # Write hidden launcher - wscript.exe runs the bat with SW_HIDE (0) and waits (True)
+    # so Task Scheduler keeps tracking the process while waitress is alive
+    $vbsContent = @'
+Dim shell, batPath
+Set shell = CreateObject("WScript.Shell")
+batPath = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\start_server.bat"
+shell.Run """" & batPath & """", 0, True
+Set shell = Nothing
+'@
+    [System.IO.File]::WriteAllText($VbsLauncher, $vbsContent, [System.Text.Encoding]::ASCII)
+    Write-OK "Hidden launcher written: start_hidden.vbs"
+
+    $webAction   = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VbsLauncher`"" -WorkingDirectory $RepoRoot
     $webTrigger  = New-ScheduledTaskTrigger -AtLogOn -User $currentUser
     $webSettings = New-ScheduledTaskSettingsSet `
         -ExecutionTimeLimit (New-TimeSpan -Hours 0) `
@@ -184,6 +197,11 @@ if (-not $SkipTaskScheduler) {
         | Out-Null
 
     Write-OK "Task '$taskWeb' created - triggers at logon for $currentUser (port $WebPort)"
+
+    # Start the task immediately after registration
+    Write-Host "  Starting task now..." -ForegroundColor Yellow
+    Start-ScheduledTask -TaskName $taskWeb
+    Write-OK "Task '$taskWeb' triggered - server starting in background (no terminal window)"
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -199,15 +217,15 @@ Write-Host "    OK  Waitress check" -ForegroundColor White
 if (-not $SkipTaskScheduler) {
     Write-Host "    OK  Task Scheduler:" -ForegroundColor White
     Write-Host "          PrintFilamentTracker-Web (at logon, port $WebPort)" -ForegroundColor White
+    Write-Host "    OK  Web server triggered (background, no terminal window)" -ForegroundColor White
 }
 
 Write-Host ""
 Write-Host "  Auto-sync and DB backup are managed by the app itself." -ForegroundColor DarkGray
 Write-Host "  Configure intervals in the Web UI Settings page." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  Start web server now:" -ForegroundColor Cyan
-Write-Host "    Start-ScheduledTask -TaskName `"PrintFilamentTracker-Web`"" -ForegroundColor White
-Write-Host "    or run: .\scripts\start_server.bat" -ForegroundColor White
+Write-Host "  To stop the server:" -ForegroundColor Cyan
+Write-Host "    Stop-ScheduledTask -TaskName `"PrintFilamentTracker-Web`"" -ForegroundColor White
 Write-Host ""
 Write-Host ("  Web UI: http://127.0.0.1:{0}" -f $WebPort) -ForegroundColor Cyan
 Write-Host ""

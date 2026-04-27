@@ -62,7 +62,7 @@ Copy-Item .env.example .env
 | 1. 環境驗證 | 檢查 `.venv`、`.env` 存在 |
 | 2. SECRET_KEY | 若 `.env` 尚未設定，自動生成 64 字元 hex 金鑰並寫入 |
 | 3. Waitress 安裝 | 若尚未安裝，執行 `pip install waitress` |
-| 4. Task Scheduler | 建立 `PrintFilamentTracker-Web` 任務，於使用者登入時自動啟動 Web 伺服器 |
+| 4. Task Scheduler | 建立 `PrintFilamentTracker-Web` 任務（登入時自動啟動），並**立即在背景啟動**（不顯示 terminal 視窗） |
 
 ### 腳本參數
 
@@ -79,14 +79,15 @@ Copy-Item .env.example .env
 
 ### 部署後啟動
 
-```powershell
-# 立即啟動（無需重新登入）
-Start-ScheduledTask -TaskName "PrintFilamentTracker-Web"
-```
-
-或直接雙擊 `scripts\start_server.bat`。
+部署腳本執行完成後會自動在背景啟動伺服器，無需額外操作。
 
 瀏覽器開啟 `http://127.0.0.1:5000`。
+
+若需手動重新啟動（例如停止後再啟動）：
+
+```powershell
+Start-ScheduledTask -TaskName "PrintFilamentTracker-Web"
+```
 
 ### 管理排程任務
 

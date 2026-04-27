@@ -67,13 +67,9 @@ copy .env.example .env
 - 驗證並生成 `SECRET_KEY`
 - 安裝 Waitress WSGI 伺服器
 - 建立 Windows 工作排程器任務（登入時自動啟動 Web 伺服器）
+- 立即啟動 Web 伺服器（背景執行，不顯示 terminal 視窗）
 
-```powershell
-# 4. 立即啟動
-Start-ScheduledTask -TaskName "PrintFilamentTracker-Web"
-```
-
-瀏覽器開啟 `http://127.0.0.1:5000`，在設定頁登入 Bambu 帳號即可開始使用。
+腳本完成後，瀏覽器開啟 `http://127.0.0.1:5000`，在設定頁登入 Bambu 帳號即可開始使用。
 
 ## 文件
 
