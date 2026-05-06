@@ -145,7 +145,7 @@ class _TrayApp:
             if error_msg:
                 notice = f"啟動失敗：{error_msg[:200]}"
             else:
-                notice = "無法啟動伺服器，請確認 port 5000 未被其他程式佔用。"
+                notice = f"無法啟動伺服器，請確認 port {PORT} 未被其他程式佔用。"
             if getattr(icon, "HAS_NOTIFICATION", False):
                 try:
                     icon.notify(notice, "PrintFilamentTracker")
