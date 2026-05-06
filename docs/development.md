@@ -62,7 +62,7 @@ print('JSON OK')
 ### 4. 啟動開發伺服器
 
 ```bash
-.venv/Scripts/python.exe -m flask --app web.app run --debug --host 127.0.0.1 --port 5000
+.venv/Scripts/python.exe -m flask --app web.app run --debug --host 127.0.0.1 --port 7580
 ```
 
 Debug 模式下：
@@ -88,6 +88,7 @@ PrintFilamentTracker/
 │   ├── backup.py           # 備份還原
 │   ├── export_json.py
 │   ├── export_csv.py
+│   ├── paths.py            # 平台感知路徑解析
 │   └── main.py             # CLI 入口
 │
 ├── web/
@@ -98,10 +99,16 @@ PrintFilamentTracker/
 │   ├── translations/       # 翻譯 JSON
 │   └── static/             # CSS/JS 靜態檔案
 │
-├── scripts/
-│   └── get_token.py
+├── tray_main.py            # System Tray 入口點（打包後的主入口）
+├── PrintFilamentTracker.spec      # Windows PyInstaller spec
+├── PrintFilamentTracker-mac.spec  # macOS PyInstaller spec
 │
-├── data/                   # gitignored（自動建立）
+├── scripts/
+│   ├── build_exe.ps1       # Windows 建置腳本（PyInstaller）
+│   ├── build_exe.sh        # macOS 建置腳本（PyInstaller）
+│   └── get_token.py        # Bambu Cloud Token 取得工具（開發用）
+│
+├── data/                   # 開發模式資料目錄（gitignored）
 │   ├── tracker.db
 │   ├── covers/
 │   ├── backups/
@@ -110,8 +117,11 @@ PrintFilamentTracker/
 ├── docs/                   # 技術文件
 ├── requirements.txt
 ├── .env.example
-└── CLAUDE.md
+├── DISCLAIMER.md
+└── LICENSE
 ```
+
+> **注意**：凍結版（`.exe`/`.app`）的資料目錄不在專案根目錄，而在作業系統標準位置（Windows：`%LOCALAPPDATA%\PrintFilamentTracker\`；macOS：`~/Library/Application Support/PrintFilamentTracker/`）。
 
 ---
 
@@ -129,11 +139,11 @@ json.load(open('web/translations/en.json', encoding='utf-8'))
 print('OK')
 "
 
-# 啟動 Web（開發模式）
-.venv/Scripts/python.exe -m flask --app web.app run --debug
+# 啟動 System Tray（最接近正式版行為）
+.venv/Scripts/python.exe tray_main.py
 
-# 啟動 Web（指定 host/port）
-.venv/Scripts/python.exe -m src.main web --host 0.0.0.0 --port 8080 --debug
+# 啟動 Web 開發伺服器（支援熱重載，不啟動托盤）
+.venv/Scripts/python.exe -m flask --app web.app run --debug --host 127.0.0.1 --port 7580
 
 # 取得 Bambu Cloud Token
 .venv/Scripts/python.exe scripts/get_token.py
@@ -150,12 +160,29 @@ print('OK')
 # 互動式耗材對應
 .venv/Scripts/python.exe -m src.main map
 
-# 一次性同步（供 Task Scheduler 呼叫）
-.venv/Scripts/python.exe -m src.main sync-once
 
 # 匯出資料
 .venv/Scripts/python.exe -m src.main export --format=both --output-dir=data
 ```
+
+### 自行建置執行檔
+
+```powershell
+# Windows（需先安裝 venv 依賴）
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\scripts\build_exe.ps1        # 需系統安裝 UPX
+.\scripts\build_exe.ps1 -NoUpx # 無 UPX 版本（防毒誤報率較低）
+# 輸出：dist\PrintFilamentTracker.exe
+```
+
+```bash
+# macOS
+.venv/bin/python -m pip install -r requirements.txt
+bash scripts/build_exe.sh
+# 輸出：dist/PrintFilamentTracker.app
+```
+
+建置腳本會自動完成：PNG 圖示轉換（`.ico`/`.icns`）→ PyInstaller 打包 → 輸出驗證。
 
 ---
 
@@ -491,7 +518,7 @@ document.body.addEventListener('htmx:configRequest', (e) => {
 ```html
 <!-- 每 2 秒輪詢 -->
 <div id="sync-status"
-     hx-get="/settings/sync-status"
+     hx-get="/settings/sync/status"
      hx-trigger="every 2s"
      hx-swap="outerHTML">
   <!-- 初始內容 -->

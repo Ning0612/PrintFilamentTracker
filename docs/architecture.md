@@ -67,14 +67,15 @@
 | `cloud_client.py` | 分頁拉取 Bambu Cloud API，儲存原始回應至 `raw_tasks.json`；處理 401/429/逾時 | `BambuCloudClient.fetch_all_tasks()` |
 | `normalize.py` | 歷史遺留，目前轉換邏輯已移入 `ingestion.py` | — |
 | `db.py` | SQLite 連線工廠、Schema 初始化與遷移、全部表的 CRUD | `get_connection(db_path)`, `_migrate_add_column()` |
-| `ingestion.py` | Cloud hits → DB pipeline：printer upsert、task insert、filament 建立、封面圖下載 | `ingest_tasks(hits, conn)` |
-| `filament.py` | Spool CRUD、計算欄位（remaining、status）、Mapping 流程、JSON/CSV 匯入匯出 | `get_spool(id)`, `list_spools()`, `map_spool(ptf_id, spool_id)` |
-| `printer.py` | Printer CRUD、統計資訊（任務數、總重量、總時長） | `get_printer(id)`, `list_printers()`, `get_printer_stats(id)` |
+| `ingestion.py` | Cloud hits → DB pipeline：printer upsert、task insert、filament 建立、封面圖下載 | `ingest_raw_tasks(hits, db_path, covers_dir)`, `run_ingestion_from_file(raw_file, db_path)`, `run_ingestion_from_cloud(config, db_path)` |
+| `filament.py` | Spool CRUD、計算欄位（remaining、status）、Mapping 流程、JSON/CSV 匯入匯出 | `read_spool(db_path, id)`, `list_spools(db_path)`, `do_map(db_path, ptf_id, spool_id)` |
+| `printer.py` | Printer CRUD、統計資訊（任務數、總重量、總時長） | `read_printer(db_path, printer_id)`, `list_printers_with_stats(db_path)` |
 | `analytics.py` | 熱力圖、材料分布、月度趨勢、Printer 使用率、成本分析 | `get_heatmap_data()`, `get_material_breakdown()` |
-| `export_json.py` | 匯出 `data/print_history.json` | `export_json(conn, output_dir)` |
-| `export_csv.py` | 匯出 `data/print_history.csv`（扁平化）與 `data/spools.csv` | `export_csv(conn, output_dir)` |
+| `export_json.py` | 匯出 `data/print_history.json` | `export_json(records: list[dict], output_path: Path)` |
+| `export_csv.py` | 匯出 `data/print_history.csv`（扁平化） | `export_csv(records: list[dict], output_path: Path)` |
 | `backup.py` | SQLite 備份（`sqlite3.Connection.backup()`）、還原、舊檔清理 | `run_backup()`, `restore_from_backup()` |
-| `main.py` | CLI 入口：`import`, `unmapped`, `map`, `export`, `sync-once`, `web` 子指令 | `main()` |
+| `paths.py` | 跨平台使用者資料目錄解析，凍結/開發模式二態支援 | `get_base_dir()`, `ensure_base_dir()`, `resolve_output_dir()` |
+| `main.py` | CLI 入口：`import`, `unmapped`, `map`, `export`, `filament status`, `web` 子指令 | `main()` |
 
 ### web/ — Flask 應用
 
@@ -86,10 +87,10 @@
 | `routes/tasks.py` | `GET/POST /tasks/`，手動任務 CRUD，圖片上傳驗證 |
 | `routes/spools.py` | `GET/POST /spools/`，JSON/CSV 匯入匯出 |
 | `routes/printers.py` | `GET/POST /printers/`，圖片上傳 |
-| `routes/mapping.py` | `GET /mapping/`，HTMX map/unmap/ignore/restore fragment |
+| `routes/mapping.py` | `GET /mapping/`，HTMX map/unmap/unignore、material inline edit、remap fragment |
 | `routes/analytics.py` | `GET /analytics/` |
 | `routes/settings.py` | 登入流程、Token 管理、同步觸發、備份/還原、後台排程控制 |
-| `routes/lang.py` | `POST /lang/set`，語言切換存 Session |
+| `routes/lang.py` | `POST /set-lang`，語言切換存 Session |
 
 ---
 
@@ -301,19 +302,19 @@ while True:
 ```
 Browser/CLI
     │
-    ├─ web/routes/settings.py (sync-now POST)
+    ├─ web/routes/settings.py (POST /settings/sync)
     │      └─ _run_sync_job()
     │              │
     │              ├─ src/config.py : load_config()
     │              ├─ src/cloud_client.py : fetch_all_tasks() → raw_tasks.json
-    │              └─ src/ingestion.py : ingest_tasks(hits, conn)
+    │              └─ src/ingestion.py : ingest_raw_tasks(hits, db_path, covers_dir)
     │                      │
     │                      ├─ printer upsert (INSERT OR IGNORE on device_id)
     │                      ├─ print_task INSERT OR IGNORE (on external_id)
     │                      ├─ print_task_filament INSERT
     │                      └─ cover image download → data/covers/{external_id}.png
     │
-    └─ HTMX polling every 2s → /settings/sync-status fragment
+    └─ HTMX polling every 2s → /settings/sync/status fragment
 ```
 
 ### 耗材對應流程
@@ -327,7 +328,7 @@ Browser
     │      └─ UPDATE print_task_filament SET filament_spool_id=X, mapped_at=NOW
     │      └─ HTMX 回傳 mapped_row.html fragment → 替換該行
     │
-    └─ User clicks ignore + POST /mapping/<ptf_id>/ignore
+    └─ User clicks ignore + POST /mapping/<ptf_id>/map（spool_id="__ignore__"）
            └─ UPDATE print_task_filament SET is_ignored=1
            └─ HTMX 回傳 ignored_row.html fragment
 ```
@@ -357,13 +358,13 @@ POST /tasks/new (multipart/form-data)
 from web.routes import dashboard, tasks, spools, printers, mapping, analytics, settings, lang
 
 app.register_blueprint(dashboard.bp)
+app.register_blueprint(lang.bp)                           # /set-lang（無 prefix）
 app.register_blueprint(tasks.bp,     url_prefix='/tasks')
 app.register_blueprint(spools.bp,    url_prefix='/spools')
 app.register_blueprint(printers.bp,  url_prefix='/printers')
 app.register_blueprint(mapping.bp,   url_prefix='/mapping')
 app.register_blueprint(analytics.bp, url_prefix='/analytics')
-app.register_blueprint(settings.bp,  url_prefix='/settings')
-app.register_blueprint(lang.bp,      url_prefix='/lang')
+app.register_blueprint(settings.bp)                       # prefix 定義於 blueprint 內部
 ```
 
 ### 路由完整清單
@@ -381,26 +382,37 @@ app.register_blueprint(lang.bp,      url_prefix='/lang')
 | `/spools/<id>/edit` | GET/POST | 編輯 Spool |
 | `/spools/<id>/delete` | POST | 刪除 Spool |
 | `/spools/import` | POST | 匯入 Spool (JSON/CSV) |
-| `/spools/export` | GET | 匯出 Spool |
+| `/spools/export/json` | GET | 匯出 Spool（JSON） |
+| `/spools/export/csv` | GET | 匯出 Spool（CSV） |
 | `/printers/` | GET | Printer 列表 |
 | `/printers/new` | GET/POST | 新增 Printer |
 | `/printers/<id>/edit` | GET/POST | 編輯 Printer |
 | `/printers/<id>/delete` | POST | 刪除 Printer |
 | `/mapping/` | GET | 耗材對應（三頁籤） |
-| `/mapping/<ptf_id>/map` | POST | 對應耗材（HTMX） |
+| `/mapping/<ptf_id>/map` | POST | 對應耗材，或傳入 `__ignore__` 值以忽略（HTMX） |
 | `/mapping/<ptf_id>/unmap` | POST | 解除對應（HTMX） |
-| `/mapping/<ptf_id>/ignore` | POST | 忽略耗材（HTMX） |
-| `/mapping/<ptf_id>/restore` | POST | 恢復忽略（HTMX） |
+| `/mapping/<ptf_id>/unignore` | POST | 恢復忽略（HTMX） |
+| `/mapping/<ptf_id>/mapped-row` | GET | 已對應列 fragment（HTMX） |
+| `/mapping/<ptf_id>/remap-form` | GET | 重新對應選擇器 fragment（HTMX） |
+| `/mapping/<ptf_id>/remap` | POST | 重新對應（HTMX） |
+| `/mapping/<ptf_id>/material-edit` | GET | material inline 編輯表單（HTMX） |
+| `/mapping/<ptf_id>/material` | POST | 儲存 material 異動（HTMX） |
+| `/mapping/<ptf_id>/material-cancel` | GET | 取消 material 編輯（HTMX） |
 | `/analytics/` | GET | 分析頁面 |
+| `/analytics/heatmap` | GET | 熱力圖 fragment（HTMX，按年份） |
 | `/settings/` | GET | 設定主頁 |
-| `/settings/login` | POST | Step 1 登入 |
-| `/settings/login-verify` | POST | Step 2 驗證碼 |
-| `/settings/sync-now` | POST | 手動同步 |
-| `/settings/sync-status` | GET | 同步狀態 fragment（HTMX polling） |
-| `/settings/backup-now` | POST | 手動備份 |
-| `/settings/backup-status` | GET | 備份狀態 fragment（HTMX polling） |
-| `/settings/backup-restore` | POST | 還原備份 |
-| `/lang/set` | POST | 切換語言 |
+| `/settings/login/form` | GET | 登入表單 fragment |
+| `/settings/login/step1` | POST | 登入第一步（帳密） |
+| `/settings/login/step2` | POST | 登入第二步（2FA / 驗證碼） |
+| `/settings/sync` | POST | 手動同步 |
+| `/settings/sync/status` | GET | 同步狀態 fragment（HTMX polling） |
+| `/settings/auto-sync` | POST | 設定自動同步間隔 |
+| `/settings/auto-sync/status` | GET | 自動同步設定狀態 fragment |
+| `/settings/backup` | POST | 手動備份 |
+| `/settings/backup/status` | GET | 備份狀態 fragment（HTMX polling） |
+| `/settings/backup/config` | POST | 設定備份間隔與保留份數 |
+| `/settings/restore` | POST | 還原備份 |
+| `/set-lang` | POST | 切換語言 |
 | `/covers/<filename>` | GET | 取得封面圖靜態檔案 |
 
 ---

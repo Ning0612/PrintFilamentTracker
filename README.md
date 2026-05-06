@@ -38,70 +38,66 @@
 
 ## 快速開始
 
-### 環境需求
+### 系統需求
 
-- Python 3.10+
-- Windows 10/11 **或** macOS 12+（Monterey）
+| 項目 | Windows | macOS |
+|------|---------|-------|
+| 作業系統 | Windows 10 / 11 | macOS 12（Monterey）以上 |
+| 磁碟空間 | 300 MB | 300 MB |
+| 記憶體 | 256 MB | 256 MB |
+| 其他需求 | — | 無需安裝 Python |
 
-### 安裝與部署
+**不需要安裝 Python**——執行檔已包含所有必要的執行環境。
 
-#### Windows（一鍵）
+### Windows 安裝
 
-```bash
-git clone https://github.com/Ning0612/PrintFilamentTracker.git
-cd PrintFilamentTracker
+1. 從 [Releases](https://github.com/Ning0612/PrintFilamentTracker/releases) 頁面下載 `PrintFilamentTracker.exe`
+2. 將 `.exe` 放置於任意目錄（建議 `C:\Users\你的名字\PrintFilamentTracker\`）
+3. 雙擊執行
 
-# 1. 建立虛擬環境並安裝依賴
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+> **⚠ Windows SmartScreen 警告**：首次執行可能出現「Windows 已保護您的電腦」警告（因執行檔尚未數位簽章）。  
+> 點擊「**其他資訊**」→「**仍要執行**」即可。
 
-# 2. 設定環境變數
-copy .env.example .env
-# 編輯 .env，至少填入 BAMBU_REGION=global（Token 可稍後在 Web 設定頁登入取得）
-```
+啟動後程式會自動：
+- 在系統托盤（右下角）顯示圖示
+- 啟動背景伺服器
+- 開啟瀏覽器並前往 `http://127.0.0.1:7580`
 
-```powershell
-# 3. 執行一鍵部署腳本（PowerShell，建議以系統管理員身份執行）
-.\scripts\setup_deployment.ps1
-```
+首次使用請前往「**設定**」頁面登入 Bambu 帳號以取得 Access Token。
 
-#### macOS（一鍵）
+### macOS 安裝
 
-```bash
-git clone https://github.com/Ning0612/PrintFilamentTracker.git
-cd PrintFilamentTracker
+1. 從 [Releases](https://github.com/Ning0612/PrintFilamentTracker/releases) 頁面下載 `PrintFilamentTracker.app.zip`
+2. 解壓縮後將 `.app` 拖曳至任意目錄
+3. **首次開啟**：右鍵點擊 `.app` → 選擇「**開啟**」→ 在對話框中確認開啟（繞過 Gatekeeper）
 
-# 1. 建立虛擬環境並安裝依賴
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+啟動後程式會在 Menu Bar（右上角）顯示圖示，並自動開啟瀏覽器。
 
-# 2. 設定環境變數
-cp .env.example .env
-# 編輯 .env，至少填入 BAMBU_REGION=global（Token 可稍後在 Web 設定頁登入取得）
+### 資料儲存位置
 
-# 3. 執行一鍵部署腳本
-bash scripts/setup_deployment.sh
-```
+程式資料（資料庫、日誌、設定）自動儲存於作業系統標準資料目錄：
 
-部署腳本會自動完成：
-- 驗證並生成 `SECRET_KEY`
-- 安裝 Waitress WSGI 伺服器
-- 建立開機自動啟動任務（Windows：工作排程器；macOS：Launch Agent）
-- 立即啟動 Web 伺服器（背景執行，不顯示 terminal 視窗）
+| 作業系統 | 路徑 |
+|---------|------|
+| Windows | `%LOCALAPPDATA%\PrintFilamentTracker\` |
+| macOS | `~/Library/Application Support/PrintFilamentTracker/` |
 
-腳本完成後，瀏覽器開啟 `http://127.0.0.1:7580`，在設定頁登入 Bambu 帳號即可開始使用。
+> **⚠ 憑證安全**：登入後，Bambu 存取 Token 以**明文**儲存於 `data/tracker.db`。請勿將資料目錄分享或同步至公開雲端服務。
 
-> **ℹ Port 說明**：預設使用 port **7580**（避開 macOS Monterey+ AirPlay Receiver 佔用的 port 5000）。
-> 若有衝突，可在使用者資料目錄的 `.env` 中加入 `PORT=<port>` 覆寫，重啟後生效。
+### 常見問題
 
-> **⚠ 憑證安全**：登入後，Bambu 存取 Token 以**明文**儲存於 `data/tracker.db`。請勿將 `data/` 目錄同步至雲端硬碟、NAS 或提交至版本控制系統。
+**防毒軟體誤判**：PyInstaller 打包的執行檔偶有誤報。若發生誤判，可暫時停用防毒後執行，或向防毒廠商回報誤報。自行建置版本（`-NoUpx`）誤報率較低。
+
+**Port 7580 被占用**：在資料目錄的 `.env` 中加入 `PORT=<新port號>`，重啟程式後生效。
+
+**Token 過期**：Bambu Cloud Token 有效期約 3 個月。到「設定」頁重新登入即可自動更新。
 
 ## 文件
 
 | 文件 | 說明 |
 |------|------|
 | [使用說明](docs/usage.md) | Web 介面各功能操作指南 |
-| [部署指南](docs/deployment.md) | 生產環境部署、HTTPS、反向代理 |
+| [部署指南](docs/deployment.md) | 安裝、設定與進階選項 |
 | [架構說明](docs/architecture.md) | 模組設計、資料庫 Schema、API 介接 |
 | [開發指南](docs/development.md) | 開發環境、新增功能、多語言、測試 |
 
@@ -109,10 +105,11 @@ bash scripts/setup_deployment.sh
 
 | 類別 | 技術 |
 |------|------|
-| 後端 | Python 3.10+, Flask 3.x |
+| 後端 | Python 3.10+, Flask 3.x, Waitress |
 | 前端 | Pico CSS v2, HTMX 1.9, 原生 JavaScript |
 | 資料庫 | SQLite（`data/tracker.db`） |
 | 安全 | Flask-WTF CSRF, Session cookie 防護, 圖片 magic bytes 驗證 |
+| 打包 | PyInstaller, pystray |
 
 ## 目錄結構
 
@@ -121,14 +118,34 @@ PrintFilamentTracker/
 ├── src/            # 業務邏輯（無 Flask 依賴）
 ├── web/            # Flask 應用（routes, templates, i18n, static）
 │   └── static/img/ # 品牌圖片（icon、banner）
-├── scripts/        # 工具腳本（取得 Token）
-├── data/           # 資料目錄（gitignored）
-│   ├── tracker.db    # SQLite 資料庫
-│   ├── covers/     # 封面圖片
-│   ├── backups/    # 資料庫備份
-│   └── logs/       # 應用日誌
+├── scripts/        # 建置與工具腳本
+│   ├── build_exe.ps1   # Windows 建置腳本（PyInstaller）
+│   ├── build_exe.sh    # macOS 建置腳本（PyInstaller）
+│   └── get_token.py    # Bambu Cloud Token 取得工具（開發用）
+├── tray_main.py    # 系統托盤入口點
+├── PrintFilamentTracker.spec     # Windows PyInstaller spec
+├── PrintFilamentTracker-mac.spec # macOS PyInstaller spec
+├── data/           # 資料目錄（凍結版位於系統資料目錄）
 ├── docs/           # 技術文件
 └── requirements.txt
+```
+
+## 自行建置
+
+若需從原始碼建置執行檔，請參考 [開發指南](docs/development.md)。
+
+```powershell
+# Windows
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\scripts\build_exe.ps1 -NoUpx
+# 輸出：dist\PrintFilamentTracker.exe
+```
+
+```bash
+# macOS
+.venv/bin/python -m pip install -r requirements.txt
+bash scripts/build_exe.sh
+# 輸出：dist/PrintFilamentTracker.app
 ```
 
 ## License
