@@ -50,12 +50,14 @@ def list_view():
         tasks, total = get_tasks_page(conn, page, PER_PAGE, search)
 
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = max(1, min(page, total_pages))
+    clamped = max(1, min(page, total_pages))
+    if clamped != page:
+        return redirect(url_for("tasks.list_view", page=clamped, q=search or None))
 
     return render_template(
         "tasks/list.html",
         tasks=tasks,
-        page=page,
+        page=clamped,
         total_pages=total_pages,
         total=total,
         search=search,

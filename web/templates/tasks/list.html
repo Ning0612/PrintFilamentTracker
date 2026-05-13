@@ -78,11 +78,18 @@
 </div>
 
 {% if total_pages > 1 %}
-<nav style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;">
+<nav style="display:flex;gap:0.5rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:1rem;">
   {% if page > 1 %}
   <a href="{{ url_for('tasks.list_view', page=page-1, q=search) }}" role="button" class="outline">{{ t('tasks.prev_page') }}</a>
   {% endif %}
-  <span style="line-height:2.5rem;">{{ page }} / {{ total_pages }}</span>
+  <form method="get" action="{{ url_for('tasks.list_view') }}" style="display:flex;gap:0.3rem;align-items:center;margin:0;">
+    {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+    <input type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+           aria-label="{{ t('tasks.page_input_label') }}"
+           style="width:3.5rem;text-align:center;margin:0;padding:0.35rem 0.25rem;">
+    <span style="line-height:2.5rem;">/ {{ total_pages }}</span>
+    <button type="submit" hidden></button>
+  </form>
   {% if page < total_pages %}
   <a href="{{ url_for('tasks.list_view', page=page+1, q=search) }}" role="button" class="outline">{{ t('tasks.next_page') }}</a>
   {% endif %}

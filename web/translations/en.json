@@ -73,6 +73,7 @@
     "total_records": "{n} records",
     "prev_page": "← Previous",
     "next_page": "Next →",
+    "page_input_label": "Go to page",
     "no_records": "No matching records.",
     "table_image": "Image",
     "table_name": "Print Name",

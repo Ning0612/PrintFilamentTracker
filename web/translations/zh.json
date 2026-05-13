@@ -73,6 +73,7 @@
     "total_records": "共 {n} 筆記錄",
     "prev_page": "← 上一頁",
     "next_page": "下一頁 →",
+    "page_input_label": "跳至頁碼",
     "no_records": "無符合條件的記錄。",
     "table_image": "圖片",
     "table_name": "列印名稱",
