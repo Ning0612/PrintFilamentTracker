@@ -290,7 +290,9 @@
     "backup_table_time": "備份時間",
     "backup_table_action": "操作",
     "backup_restore_btn": "還原",
-    "backup_restore_confirm": "確定要從「{file}」還原資料庫？\n此操作將覆蓋現有所有資料，無法復原。",
+    "backup_restore_confirm": "請輸入「{word}」以確認從「{file}」還原（此操作將覆蓋現有所有資料，不可復原）：",
+    "backup_restore_confirm_word": "還原",
+    "backup_restore_wrong_word": "確認詞不符，還原已取消。",
     "backup_no_backups": "尚無備份檔案。",
     "next_backup": "下次備份：",
     "last_backup_label": "上次備份："
@@ -350,6 +352,7 @@
       "running": "備份進行中...",
       "done": "備份完成：{file}",
       "error": "備份失敗：{msg}",
+      "pre_restore_backup_error": "還原前自動備份失敗：{msg}。已中止還原以保護現有資料。",
       "restore_done": "已從備份 {file} 還原成功，頁面已更新。",
       "restore_error": "還原失敗：{msg}",
       "restore_invalid": "無效的備份檔案名稱。"

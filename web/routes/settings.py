@@ -634,6 +634,14 @@ def restore_backup():
     db_path = current_app.config["DB_PATH"]
     backup_dir = db_path.parent / "backups"
     backup_path = backup_dir / filename
+    keep_count = int(current_app.config.get("BACKUP_KEEP_COUNT", 7))
+
+    try:
+        backup_mod.run_backup(db_path, backup_dir, keep_count)
+    except Exception as exc:
+        current_app.logger.error("還原前備份失敗：%s", exc)
+        flash(t("flash.backup.pre_restore_backup_error", msg=str(exc)), "error")
+        return redirect(url_for("settings.index"))
 
     try:
         backup_mod.restore_from_backup(db_path, backup_path)

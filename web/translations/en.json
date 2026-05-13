@@ -290,7 +290,9 @@
     "backup_table_time": "Backup time",
     "backup_table_action": "Action",
     "backup_restore_btn": "Restore",
-    "backup_restore_confirm": "Restore database from \"{file}\"?\nThis will overwrite all current data and cannot be undone.",
+    "backup_restore_confirm": "Type \"{word}\" to confirm restoring from \"{file}\" (this will overwrite all current data and cannot be undone):",
+    "backup_restore_confirm_word": "restore",
+    "backup_restore_wrong_word": "Wrong word entered. Restore cancelled.",
     "backup_no_backups": "No backup files yet.",
     "next_backup": "Next backup:",
     "last_backup_label": "Last backup:"
@@ -350,6 +352,7 @@
       "running": "Backup in progress...",
       "done": "Backup complete: {file}",
       "error": "Backup failed: {msg}",
+      "pre_restore_backup_error": "Pre-restore backup failed: {msg}. Restore aborted to protect your data.",
       "restore_done": "Database restored from {file} successfully.",
       "restore_error": "Restore failed: {msg}",
       "restore_invalid": "Invalid backup filename."

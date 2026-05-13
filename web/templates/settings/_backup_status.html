@@ -56,7 +56,10 @@
           <td>
             <form method="post" action="{{ url_for('settings.restore_backup') }}"
                   style="margin:0;"
-                  onsubmit="return confirm('{{ t('settings.backup_restore_confirm', file=b.name) | e }}')">
+                  data-confirm-word="{{ t('settings.backup_restore_confirm_word') | e }}"
+                  data-confirm-msg="{{ t('settings.backup_restore_confirm', file=b.name, word=t('settings.backup_restore_confirm_word')) | e }}"
+                  data-wrong-msg="{{ t('settings.backup_restore_wrong_word') | e }}"
+                  onsubmit="return window._checkRestoreWord(this)">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="filename" value="{{ b.name | e }}">
               <button type="submit" class="outline contrast"
@@ -76,3 +79,15 @@
   </p>
   {% endif %}
 </div>
+<script>
+  window._checkRestoreWord = window._checkRestoreWord || function(form) {
+    var w = (form.dataset.confirmWord || 'restore').trim();
+    var i = window.prompt(form.dataset.confirmMsg);
+    if (i === null) return false;
+    if (i.trim().toLowerCase() !== w.toLowerCase()) {
+      window.alert(form.dataset.wrongMsg);
+      return false;
+    }
+    return true;
+  };
+</script>
