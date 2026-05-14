@@ -4,6 +4,8 @@
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js" defer></script>
 <script>
 window._analyticsData = {
   material:      {{ material      | tojson }},
@@ -55,7 +57,80 @@ window._chartLabels = {
     </div>
   </article>
 
-  {# ── 2. Material + Cost ── #}
+  {# ── 2. Monthly trend（任務數 + 重量 + 耗時）── #}
+  <article style="margin-bottom:1.5rem;">
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <strong style="white-space:nowrap;">{{ t('analytics.trend_title') }}</strong>
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <small class="muted-label" style="white-space:nowrap;">{{ t('analytics.trend_pan_hint') }}</small>
+        <button id="trend-reset-btn" class="outline" style="padding:.2rem .75rem;font-size:.8rem;margin:0;white-space:nowrap;" onclick="window.resetTrendZoom && window.resetTrendZoom()">{{ t('analytics.trend_reset') }}</button>
+      </div>
+    </header>
+    {% if trend.has_data %}
+    <canvas id="chart-trend" height="120"></canvas>
+    {% else %}
+    <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
+    {% endif %}
+  </article>
+
+  {# ── 3. Duration histogram + Weekday ── #}
+  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
+
+    <article>
+      <header><strong>{{ t('analytics.duration_hist_title') }}</strong></header>
+      {% if duration_hist.has_data %}
+      <canvas id="chart-duration-hist" height="220"></canvas>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_duration_data') }}</p>
+      {% endif %}
+    </article>
+
+    <article>
+      <header><strong>{{ t('analytics.weekday_title') }}</strong></header>
+      {% if weekday.has_data %}
+      <canvas id="chart-weekday" height="220"></canvas>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
+      {% endif %}
+    </article>
+
+  </div>
+
+  {# ── 4. Printers 使用率 + 時長佔比 ── #}
+  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
+
+    <article>
+      <header><strong>{{ t('analytics.printers_title') }}</strong></header>
+      {% if printers.has_data %}
+      <canvas id="chart-printers" height="220"></canvas>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
+      {% endif %}
+    </article>
+
+    <article>
+      <header><strong>{{ t('analytics.printer_duration_pie_title') }}</strong></header>
+      {% if printers.has_duration_data %}
+      <div style="max-width:240px;margin:0 auto;">
+        <canvas id="chart-printer-duration-pie" height="240"></canvas>
+      </div>
+      <div class="material-legend">
+        {% for i in range(printers.labels | length) %}
+        <div class="legend-item">
+          <span class="legend-dot" style="background:{{ printers.colors[i] }}"></span>
+          <span>{{ printers.labels[i] }}</span>
+          <span class="muted-label">{{ printers.durations_h[i] }}h</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_duration_data') }}</p>
+      {% endif %}
+    </article>
+
+  </div>
+
+  {# ── 5. Material + Cost ── #}
   <div class="analytics-two-col" style="margin-bottom:1.5rem;">
 
     <article>
@@ -107,73 +182,6 @@ window._chartLabels = {
       <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_cost_hint') }}</p>
       {% endif %}
     </article>
-  </div>
-
-  {# ── 3. Monthly trend（任務數 + 重量 + 耗時）── #}
-  <article style="margin-bottom:1.5rem;">
-    <header><strong>{{ t('analytics.trend_title') }}</strong></header>
-    {% if trend.has_data %}
-    <canvas id="chart-trend" height="120"></canvas>
-    {% else %}
-    <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
-    {% endif %}
-  </article>
-
-  {# ── 4. Duration histogram + Weekday ── #}
-  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
-
-    <article>
-      <header><strong>{{ t('analytics.duration_hist_title') }}</strong></header>
-      {% if duration_hist.has_data %}
-      <canvas id="chart-duration-hist" height="220"></canvas>
-      {% else %}
-      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_duration_data') }}</p>
-      {% endif %}
-    </article>
-
-    <article>
-      <header><strong>{{ t('analytics.weekday_title') }}</strong></header>
-      {% if weekday.has_data %}
-      <canvas id="chart-weekday" height="220"></canvas>
-      {% else %}
-      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
-      {% endif %}
-    </article>
-
-  </div>
-
-  {# ── 5. Printers 使用率 + 時長佔比 ── #}
-  <div class="analytics-two-col" style="margin-bottom:1.5rem;">
-
-    <article>
-      <header><strong>{{ t('analytics.printers_title') }}</strong></header>
-      {% if printers.has_data %}
-      <canvas id="chart-printers" height="220"></canvas>
-      {% else %}
-      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_data') }}</p>
-      {% endif %}
-    </article>
-
-    <article>
-      <header><strong>{{ t('analytics.printer_duration_pie_title') }}</strong></header>
-      {% if printers.has_duration_data %}
-      <div style="max-width:240px;margin:0 auto;">
-        <canvas id="chart-printer-duration-pie" height="240"></canvas>
-      </div>
-      <div class="material-legend">
-        {% for i in range(printers.labels | length) %}
-        <div class="legend-item">
-          <span class="legend-dot" style="background:{{ printers.colors[i] }}"></span>
-          <span>{{ printers.labels[i] }}</span>
-          <span class="muted-label">{{ printers.durations_h[i] }}h</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="muted-label" style="text-align:center;padding:2rem 0;">{{ t('analytics.no_duration_data') }}</p>
-      {% endif %}
-    </article>
-
   </div>
 
   {# ── 6. Spool Cost（swatch）+ Colors（swatch）── #}
@@ -284,10 +292,13 @@ window._chartLabels = {
 
     var ctxTrend = document.getElementById('chart-trend');
     if (ctxTrend && d.trend.has_data) {
-      new Chart(ctxTrend, {
+      var trendLabels = d.trend.labels;
+      var trendInitMin = trendLabels.length > 12 ? trendLabels[trendLabels.length - 12] : trendLabels[0];
+      var trendInitMax = trendLabels[trendLabels.length - 1];
+      var trendChart = new Chart(ctxTrend, {
         type: 'bar',
         data: {
-          labels: d.trend.labels,
+          labels: trendLabels,
           datasets: [
             { type: 'line', label: L.weight,     data: d.trend.weights,    borderColor: '#3B82F6',
               backgroundColor: 'rgba(59,130,246,0.12)', yAxisID: 'yW', tension: 0.3, fill: true, pointRadius: 3 },
@@ -297,14 +308,26 @@ window._chartLabels = {
           ]
         },
         options: {
-          plugins: { legend: { position: 'bottom' } },
+          plugins: {
+            legend: { position: 'bottom' },
+            zoom: {
+              pan: { enabled: true, mode: 'x' },
+              zoom: { wheel: { enabled: false }, pinch: { enabled: false } },
+            }
+          },
           scales: {
+            x: { min: trendInitMin, max: trendInitMax },
             yC: { type: 'linear', position: 'left',  title: { display: true, text: L.count_axis } },
             yW: { type: 'linear', position: 'right', title: { display: true, text: L.weight_axis }, grid: { drawOnChartArea: false } },
             yD: { type: 'linear', position: 'right', display: false, beginAtZero: true }
           }
         }
       });
+      window.resetTrendZoom = function () {
+        trendChart.options.scales.x.min = trendInitMin;
+        trendChart.options.scales.x.max = trendInitMax;
+        trendChart.update('none');
+      };
     }
 
     var ctxDurHist = document.getElementById('chart-duration-hist');

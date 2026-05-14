@@ -25,7 +25,7 @@ def index():
         material = get_material_chart_payload(conn)
         cost = get_cost_chart_payload(conn)
         colors = get_color_swatch_payload(conn)
-        trend = get_monthly_trend_payload(conn)
+        trend = get_monthly_trend_payload(conn, months=60)
         printers = get_printer_chart_payload(conn)
         duration_hist = get_duration_histogram_payload(conn)
         spool_cost = get_spool_cost_ranking_payload(conn)

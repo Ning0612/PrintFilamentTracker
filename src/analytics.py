@@ -153,13 +153,13 @@ def get_color_swatch_payload(conn: sqlite3.Connection) -> list:
     ]
 
 
-def get_monthly_trend_payload(conn: sqlite3.Connection) -> dict:
-    rows = get_monthly_trend(conn, months=12)
+def get_monthly_trend_payload(conn: sqlite3.Connection, months: int = 60) -> dict:
+    rows = get_monthly_trend(conn, months=months)
     by_month = {r["month"]: r for r in rows}
 
     today = date.today()
     labels, counts, weights, durations_h = [], [], [], []
-    for i in range(11, -1, -1):
+    for i in range(months - 1, -1, -1):
         y = today.year
         m = today.month - i
         while m <= 0:
