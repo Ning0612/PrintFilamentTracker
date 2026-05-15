@@ -16,6 +16,7 @@ from src.filament import (
     list_unmapped,
     read_mapped_filament,
     read_ptf_material,
+    read_ptf_with_spool,
     read_spool,
 )
 
@@ -159,6 +160,55 @@ def unignore_view(ptf_id: int):
     return f'<tr id="ignored-row-{ptf_id}" style="display:none;"></tr>'
 
 
+@bp.route("/<int:ptf_id>/detail-remap-form")
+def detail_remap_form(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    f = read_ptf_with_spool(db_path, ptf_id)
+    if f is None:
+        return _detail_row_error(ptf_id, t("flash.mapping.not_found"))
+    spools = list_spools_for_mapping(db_path)
+    return render_template("tasks/_filament_remap_row.html", f=f, spools=spools)
+
+
+@bp.route("/<int:ptf_id>/detail-remap", methods=["POST"])
+def detail_remap_view(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    spool_id_str = request.form.get("spool_id", "").strip()
+    if not spool_id_str:
+        return _detail_row_error(ptf_id, t("flash.mapping.select_spool_remap"))
+    try:
+        spool_id = int(spool_id_str)
+        do_map(db_path, ptf_id, spool_id)
+    except (ValueError, SpoolNotFoundError) as exc:
+        return _detail_row_error(ptf_id, str(exc))
+    f = read_ptf_with_spool(db_path, ptf_id)
+    if f is None:
+        return _detail_row_error(ptf_id, t("flash.mapping.remap_read_failed"))
+    return render_template("tasks/_filament_row.html", f=f)
+
+
+@bp.route("/<int:ptf_id>/detail-unmap", methods=["POST"])
+def detail_unmap_view(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    try:
+        do_unmap(db_path, ptf_id)
+    except SpoolNotFoundError:
+        pass
+    f = read_ptf_with_spool(db_path, ptf_id)
+    if f is None:
+        return f'<tr id="detail-filament-{ptf_id}" style="display:none;"></tr>'
+    return render_template("tasks/_filament_row.html", f=f)
+
+
+@bp.route("/<int:ptf_id>/detail-row")
+def detail_filament_row(ptf_id: int):
+    db_path = current_app.config["DB_PATH"]
+    f = read_ptf_with_spool(db_path, ptf_id)
+    if f is None:
+        return f'<tr id="detail-filament-{ptf_id}" style="display:none;"></tr>'
+    return render_template("tasks/_filament_row.html", f=f)
+
+
 def _row_error(ptf_id: int, msg: str) -> str:
     return render_template("mapping/error_row.html", ptf_id=ptf_id, msg=msg)
 
@@ -167,3 +217,9 @@ def _mapped_row_error(ptf_id: int, msg: str) -> str:
     safe_msg = escape(msg)
     safe_prefix = escape(t("common.error_prefix"))
     return f'<tr id="mapped-row-{ptf_id}"><td colspan="8" style="color:var(--pico-del-color);">⚠ {safe_prefix}{safe_msg}</td></tr>'
+
+
+def _detail_row_error(ptf_id: int, msg: str) -> str:
+    safe_msg = escape(msg)
+    safe_prefix = escape(t("common.error_prefix"))
+    return f'<tr id="detail-filament-{ptf_id}"><td colspan="5" style="color:var(--pico-del-color);">⚠ {safe_prefix}{safe_msg}</td></tr>'

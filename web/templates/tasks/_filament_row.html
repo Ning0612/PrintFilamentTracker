@@ -1,0 +1,33 @@
+<tr id="detail-filament-{{ f.id }}">
+  <td>{{ f.slot_id if f.slot_id is not none else '-' }}</td>
+  <td>{{ f.material or '-' }}</td>
+  <td>
+    {% if f.color_hex %}
+    <span class="color-swatch" style="--swatch-color:{{ f.color_hex }};"></span>
+    {% endif %}
+    {{ f.color_hex or '-' }}
+  </td>
+  <td>{{ '%.2f' % f.used_weight_g if f.used_weight_g else '-' }}g</td>
+  <td>
+    {% if f.filament_spool_id %}
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <a href="{{ url_for('spools.detail_view', spool_id=f.filament_spool_id) }}">Spool #{{ f.filament_spool_id }} {{ f.color_name or '' }}</a>
+      <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+        <button class="outline"
+                hx-get="{{ url_for('mapping.detail_remap_form', ptf_id=f.id) }}"
+                hx-target="#detail-filament-{{ f.id }}"
+                hx-swap="outerHTML"
+                style="padding:0.2rem 0.6rem;font-size:0.8rem;margin:0;line-height:1.4;">{{ t('mapping.remap_modify_btn') }}</button>
+        <button class="outline"
+                hx-post="{{ url_for('mapping.detail_unmap_view', ptf_id=f.id) }}"
+                hx-target="#detail-filament-{{ f.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="{{ t('mapping.confirm_unmap') }}"
+                style="padding:0.2rem 0.6rem;font-size:0.8rem;margin:0;line-height:1.4;color:var(--pico-del-color);">{{ t('mapping.unmap_btn') }}</button>
+      </div>
+    </div>
+    {% else %}
+    <span style="color:var(--pico-muted-color);">{{ t('tasks.detail_not_mapped') }}</span>
+    {% endif %}
+  </td>
+</tr>

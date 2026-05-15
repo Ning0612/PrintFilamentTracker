@@ -535,6 +535,20 @@ def get_ptf_by_id(conn: sqlite3.Connection, ptf_id: int):
     ).fetchone()
 
 
+def get_ptf_row_with_spool(conn: sqlite3.Connection, ptf_id: int):
+    return conn.execute(
+        """
+        SELECT ptf.id, ptf.slot_id, ptf.material, ptf.color_hex,
+               ptf.used_weight_g, ptf.filament_spool_id,
+               fs.color_name
+        FROM print_task_filament ptf
+        LEFT JOIN filament_spool fs ON fs.id = ptf.filament_spool_id
+        WHERE ptf.id = ?
+        """,
+        (ptf_id,),
+    ).fetchone()
+
+
 def get_ptf_material(conn: sqlite3.Connection, ptf_id: int):
     return conn.execute(
         "SELECT material FROM print_task_filament WHERE id=?", (ptf_id,)

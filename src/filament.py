@@ -17,6 +17,7 @@ from .db import (
     get_mapped_filaments,
     get_ptf_by_id,
     get_ptf_material,
+    get_ptf_row_with_spool,
     get_ptf_row_by_task_and_slot,
     get_spool_by_id,
     get_spool_id_by_uid,
@@ -294,6 +295,12 @@ def read_ptf_material(db_path: Path, ptf_id: int):
     with get_connection(db_path) as conn:
         row = get_ptf_material(conn, ptf_id)
         return row["material"] if row else None
+
+
+def read_ptf_with_spool(db_path: Path, ptf_id: int) -> dict | None:
+    with get_connection(db_path) as conn:
+        row = get_ptf_row_with_spool(conn, ptf_id)
+        return dict(row) if row else None
 
 
 def edit_ptf_material(db_path: Path, ptf_id: int, material) -> None:

@@ -1,0 +1,35 @@
+<tr id="detail-filament-{{ f.id }}">
+  <td>{{ f.slot_id if f.slot_id is not none else '-' }}</td>
+  <td>{{ f.material or '-' }}</td>
+  <td>
+    {% if f.color_hex %}
+    <span class="color-swatch" style="--swatch-color:{{ f.color_hex }};"></span>
+    {% endif %}
+    {{ f.color_hex or '-' }}
+  </td>
+  <td>{{ '%.2f' % f.used_weight_g if f.used_weight_g else '-' }}g</td>
+  <td>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <select name="spool_id" id="detail-remap-spool-{{ f.id }}" style="min-width:180px;margin:0;font-size:0.85rem;">
+        <option value="">{{ t('mapping.select_new_spool') }}</option>
+        {% for s in spools %}
+        <option value="{{ s.id }}" {% if s.id == f.filament_spool_id %}selected{% endif %}>
+          [{{ s.id }}] {{ s.color_name or s.color_hex or '-' }} {{ s.material or '' }}
+        </option>
+        {% endfor %}
+      </select>
+      <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+        <button hx-post="{{ url_for('mapping.detail_remap_view', ptf_id=f.id) }}"
+                hx-include="#detail-remap-spool-{{ f.id }}"
+                hx-target="#detail-filament-{{ f.id }}"
+                hx-swap="outerHTML"
+                style="padding:0.2rem 0.6rem;font-size:0.8rem;margin:0;line-height:1.4;">{{ t('mapping.remap_confirm_btn') }}</button>
+        <button class="outline"
+                hx-get="{{ url_for('mapping.detail_filament_row', ptf_id=f.id) }}"
+                hx-target="#detail-filament-{{ f.id }}"
+                hx-swap="outerHTML"
+                style="padding:0.2rem 0.6rem;font-size:0.8rem;margin:0;line-height:1.4;">{{ t('mapping.cancel_btn') }}</button>
+      </div>
+    </div>
+  </td>
+</tr>
