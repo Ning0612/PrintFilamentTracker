@@ -357,6 +357,127 @@ def sync_task_filament(conn: sqlite3.Connection, print_task_id: int, ptf: dict) 
     return True
 
 
+def _hex_color_distance(left: str | None, right: str | None) -> int | None:
+    if not left or not right:
+        return None
+    left = left.lstrip("#")
+    right = right.lstrip("#")
+    if len(left) != 6 or len(right) != 6:
+        return None
+    try:
+        l_rgb = tuple(int(left[i:i + 2], 16) for i in (0, 2, 4))
+        r_rgb = tuple(int(right[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return None
+    return sum((a - b) ** 2 for a, b in zip(l_rgb, r_rgb))
+
+
+def sync_task_filaments(conn: sqlite3.Connection, print_task_id: int, rows: list[dict]) -> int:
+    """Synchronize all cloud filament rows for a task while preserving mappings.
+
+    Bambu Cloud can report several colors with the same slot_id for one plate.
+    Matching rows one by one by slot_id would update the same database row
+    repeatedly, corrupting color/weight data. Batch matching lets existing
+    spool mappings win by color proximity first, then falls back to exact
+    color/material and row order for remaining duplicate-slot rows.
+    """
+    existing = conn.execute(
+        """
+        SELECT ptf.id, ptf.slot_id, ptf.used_weight_g, ptf.color_hex, ptf.material,
+               ptf.filament_spool_id, ptf.is_ignored,
+               fs.color_hex AS spool_color_hex
+        FROM print_task_filament ptf
+        LEFT JOIN filament_spool fs ON fs.id = ptf.filament_spool_id
+        WHERE ptf.print_task_id = ?
+        ORDER BY
+          CASE WHEN ptf.slot_id IS NULL THEN 1 ELSE 0 END,
+          ptf.slot_id,
+          ptf.id
+        """,
+        (print_task_id,),
+    ).fetchall()
+
+    matched_existing: set[int] = set()
+    assignments: list[tuple[dict, sqlite3.Row | None]] = []
+
+    for row in rows:
+        match = None
+        closest_distance = None
+        for candidate in existing:
+            if candidate["id"] in matched_existing:
+                continue
+            if candidate["slot_id"] != row.get("slot_id"):
+                continue
+            if candidate["material"] != row.get("material"):
+                continue
+            distance = _hex_color_distance(
+                candidate["spool_color_hex"],
+                row.get("color_hex"),
+            )
+            if distance is None or distance > 90 * 90:
+                continue
+            if closest_distance is None or distance < closest_distance:
+                match = candidate
+                closest_distance = distance
+        if match is not None:
+            matched_existing.add(match["id"])
+            assignments.append((row, match))
+            continue
+
+        for candidate in existing:
+            if candidate["id"] in matched_existing:
+                continue
+            if candidate["slot_id"] != row.get("slot_id"):
+                continue
+            if candidate["color_hex"] != row.get("color_hex"):
+                continue
+            if candidate["material"] != row.get("material"):
+                continue
+            match = candidate
+            break
+        if match is not None:
+            matched_existing.add(match["id"])
+        assignments.append((row, match))
+
+    unmatched_by_slot: dict[int | None, list[sqlite3.Row]] = {}
+    for candidate in existing:
+        if candidate["id"] in matched_existing:
+            continue
+        unmatched_by_slot.setdefault(candidate["slot_id"], []).append(candidate)
+
+    inserted_count = 0
+    for idx, (row, match) in enumerate(assignments):
+        if match is None:
+            candidates = unmatched_by_slot.get(row.get("slot_id"), [])
+            if candidates:
+                match = candidates.pop(0)
+                matched_existing.add(match["id"])
+                assignments[idx] = (row, match)
+
+        if match is None:
+            insert_print_task_filament(conn, row)
+            inserted_count += 1
+            continue
+
+        conn.execute(
+            """
+            UPDATE print_task_filament SET
+              used_weight_g = COALESCE(?, used_weight_g),
+              color_hex     = COALESCE(?, color_hex),
+              material      = COALESCE(?, material)
+            WHERE id = ?
+            """,
+            (
+                row.get("used_weight_g"),
+                row.get("color_hex"),
+                row.get("material"),
+                match["id"],
+            ),
+        )
+
+    return inserted_count
+
+
 def delete_unmapped_null_slot_ptf(conn: sqlite3.Connection, print_task_id: int) -> int:
     """Remove the NULL-slot fallback PTF row if the task now has real slot data.
 
@@ -842,13 +963,14 @@ def get_all_mappings_for_export(conn: sqlite3.Connection) -> list:
         """
         SELECT
           ptf.id, ptf.slot_id, ptf.is_ignored, ptf.mapped_at,
+          ptf.color_hex, ptf.material, ptf.used_weight_g,
           pt.external_id AS print_task_external_id,
           fs.uid AS spool_uid
         FROM print_task_filament ptf
         JOIN print_task pt ON pt.id = ptf.print_task_id
         LEFT JOIN filament_spool fs ON fs.id = ptf.filament_spool_id
         WHERE ptf.filament_spool_id IS NOT NULL OR ptf.is_ignored = 1
-        ORDER BY pt.external_id, ptf.slot_id
+        ORDER BY pt.external_id, ptf.slot_id, ptf.color_hex, ptf.material, ptf.used_weight_g, ptf.id
         """
     ).fetchall()
 
@@ -880,6 +1002,63 @@ def get_ptf_row_by_task_and_slot(conn: sqlite3.Connection, print_task_id: int, s
         "WHERE print_task_id = ? AND slot_id = ? LIMIT 1",
         (print_task_id, slot_id),
     ).fetchone()
+
+
+def get_ptf_row_for_mapping(conn: sqlite3.Connection, print_task_id: int, mapping: dict) -> sqlite3.Row | None:
+    slot_id = mapping.get("slot_id")
+    color_hex = mapping.get("color_hex")
+    material = mapping.get("material")
+    used_weight_g = mapping.get("used_weight_g")
+
+    if color_hex is not None or material is not None or used_weight_g is not None:
+        clauses = ["print_task_id = ?"]
+        params: list = [print_task_id]
+        if slot_id is None:
+            clauses.append("slot_id IS NULL")
+        else:
+            clauses.append("slot_id = ?")
+            params.append(slot_id)
+        if color_hex is None:
+            clauses.append("color_hex IS NULL")
+        else:
+            clauses.append("color_hex = ?")
+            params.append(color_hex)
+        if material is None:
+            clauses.append("material IS NULL")
+        else:
+            clauses.append("material = ?")
+            params.append(material)
+        if used_weight_g is not None:
+            clauses.append("ABS(COALESCE(used_weight_g, 0) - ?) < 0.01")
+            params.append(float(used_weight_g))
+
+        matches = conn.execute(
+            "SELECT id, filament_spool_id, is_ignored FROM print_task_filament "
+            f"WHERE {' AND '.join(clauses)} ORDER BY id",
+            params,
+        ).fetchall()
+        occurrence = mapping.get("occurrence_index")
+        if occurrence is not None:
+            try:
+                idx = int(occurrence)
+            except (TypeError, ValueError):
+                return None
+            return matches[idx] if 0 <= idx < len(matches) else None
+        return matches[0] if len(matches) == 1 else None
+
+    if slot_id is None:
+        rows = conn.execute(
+            "SELECT id, filament_spool_id, is_ignored FROM print_task_filament "
+            "WHERE print_task_id = ? AND slot_id IS NULL",
+            (print_task_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, filament_spool_id, is_ignored FROM print_task_filament "
+            "WHERE print_task_id = ? AND slot_id = ?",
+            (print_task_id, slot_id),
+        ).fetchall()
+    return rows[0] if len(rows) == 1 else None
 
 
 def set_ptf_ignored(conn: sqlite3.Connection, ptf_id: int) -> None:

@@ -17,8 +17,8 @@ from .db import (
     get_mapped_filaments,
     get_ptf_by_id,
     get_ptf_material,
+    get_ptf_row_for_mapping,
     get_ptf_row_with_spool,
-    get_ptf_row_by_task_and_slot,
     get_spool_by_id,
     get_spool_id_by_uid,
     get_spool_last_used_map,
@@ -354,16 +354,30 @@ def export_spools_json(db_path: Path) -> str:
         spool_rows = get_all_spools(conn)
         mapping_rows = get_all_mappings_for_export(conn)
     spools = [{k: dict(row).get(k) for k in _SPOOL_FIELDS} for row in spool_rows]
-    mappings = [
-        {
-            "print_task_external_id": dict(r)["print_task_external_id"],
-            "slot_id": dict(r)["slot_id"],
-            "spool_uid": dict(r)["spool_uid"],
-            "is_ignored": dict(r)["is_ignored"],
-            "mapped_at": dict(r)["mapped_at"],
-        }
-        for r in mapping_rows
-    ]
+    mappings = []
+    occurrence_counts: dict[tuple, int] = {}
+    for row in mapping_rows:
+        r = dict(row)
+        signature = (
+            r["print_task_external_id"],
+            r["slot_id"],
+            r["color_hex"],
+            r["material"],
+            r["used_weight_g"],
+        )
+        occurrence_index = occurrence_counts.get(signature, 0)
+        occurrence_counts[signature] = occurrence_index + 1
+        mappings.append({
+            "print_task_external_id": r["print_task_external_id"],
+            "slot_id": r["slot_id"],
+            "color_hex": r["color_hex"],
+            "material": r["material"],
+            "used_weight_g": r["used_weight_g"],
+            "occurrence_index": occurrence_index,
+            "spool_uid": r["spool_uid"],
+            "is_ignored": r["is_ignored"],
+            "mapped_at": r["mapped_at"],
+        })
     return json.dumps(
         {
             "version": "1.0",
@@ -445,7 +459,6 @@ def _import_mapping_list(db_path: Path, mappings: list) -> dict:
 def _apply_one_mapping(conn, m: dict) -> str:
     """Apply one mapping record. Returns 'applied' or 'skipped'."""
     external_id = m.get("print_task_external_id")
-    slot_id = m.get("slot_id")
     spool_uid = m.get("spool_uid")
     is_ignored = bool(m.get("is_ignored"))
 
@@ -456,7 +469,7 @@ def _apply_one_mapping(conn, m: dict) -> str:
     if task_id is None:
         return "skipped"
 
-    ptf = get_ptf_row_by_task_and_slot(conn, task_id, slot_id)
+    ptf = get_ptf_row_for_mapping(conn, task_id, m)
     if ptf is None:
         return "skipped"
 

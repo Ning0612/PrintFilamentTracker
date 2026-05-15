@@ -8,7 +8,7 @@ from .db import (
     get_connection,
     get_db_path,
     insert_print_task_filament,
-    sync_task_filament,
+    sync_task_filaments,
     upsert_print_task,
     upsert_printer,
 )
@@ -201,10 +201,9 @@ def ingest_raw_tasks(
                     has_real_slots = any(
                         row.get("slot_id") is not None for row in filament_rows
                     )
-                    for row in filament_rows:
-                        inserted = sync_task_filament(conn, task_db_id, row)
-                        if inserted:
-                            stats["filaments"] += 1
+                    stats["filaments"] += sync_task_filaments(
+                        conn, task_db_id, filament_rows
+                    )
                     # When cloud now provides real slot data, remove the stale
                     # NULL-slot fallback row (only if it has no user mapping).
                     if has_real_slots:
