@@ -14,6 +14,7 @@
 - [多語言系統](#多語言系統)
 - [安全機制](#安全機制)
 - [關鍵設計決策](#關鍵設計決策)
+- [欄位對應（Cloud → DB）](#欄位對應cloud--db)
 
 ---
 
@@ -70,7 +71,7 @@
 | `ingestion.py` | Cloud hits → DB pipeline：printer upsert、task insert、filament 建立、封面圖下載與補圖 | `ingest_raw_tasks(hits, db_path, covers_dir)`, `run_ingestion_from_file(raw_file, db_path)`, `run_ingestion_from_cloud(config, db_path)`, `try_redownload_cover(external_id, covers_dir, db_path)` |
 | `filament.py` | Spool CRUD、計算欄位（remaining、status）、Mapping 流程、JSON/CSV 匯入匯出 | `read_spool(db_path, id)`, `list_spools(db_path)`, `do_map(db_path, ptf_id, spool_id)` |
 | `printer.py` | Printer CRUD、統計資訊（任務數、總重量、總時長） | `read_printer(db_path, printer_id)`, `list_printers_with_stats(db_path)` |
-| `analytics.py` | 熱力圖、材料分布、月度趨勢、Printer 使用率、成本分析 | `get_heatmap_data()`, `get_material_breakdown()` |
+| `analytics.py` | 熱力圖、材料分布、月度趨勢、Printer 使用率、成本分析、時長分布、週間活動分布、每日報告摘要 | `get_heatmap_payload()`, `get_material_chart_payload()`, `get_monthly_trend_payload()`, `get_daily_detail_payload()`, `get_weekday_stats_payload()`, `get_spool_cost_ranking_payload()` |
 | `export_json.py` | 匯出 `data/print_history.json` | `export_json(records: list[dict], output_path: Path)` |
 | `export_csv.py` | 匯出 `data/print_history.csv`（扁平化） | `export_csv(records: list[dict], output_path: Path)` |
 | `backup.py` | SQLite 備份（`sqlite3.Connection.backup()`）、還原、舊檔清理 | `run_backup()`, `restore_from_backup()` |
@@ -88,8 +89,8 @@
 | `routes/spools.py` | `GET/POST /spools/`，JSON/CSV 匯入匯出 |
 | `routes/printers.py` | `GET/POST /printers/`，圖片上傳 |
 | `routes/mapping.py` | `GET /mapping/`，HTMX map/unmap/unignore、material inline edit、remap fragment |
-| `routes/analytics.py` | `GET /analytics/` |
-| `routes/settings.py` | 登入流程、Token 管理、同步觸發、備份/還原、後台排程控制 |
+| `routes/analytics.py` | `GET /analytics/`、`GET /analytics/day/<date>`（每日報告）、`GET /analytics/heatmap`（年份切換 fragment） |
+| `routes/settings.py` | 登入流程、Token 管理、同步觸發、備份/還原、後台排程控制、時區設定 |
 | `routes/lang.py` | `POST /set-lang`，語言切換存 Session |
 
 ---
@@ -143,9 +144,14 @@ CREATE TABLE print_task (
     total_weight_g   REAL,
     cover_url        TEXT,                     -- 如 /covers/m42.jpg
     raw_json         TEXT,                     -- API 原始回應（JSON 字串）
-    is_manual        INTEGER NOT NULL DEFAULT 0  -- 1 = 手動新增
+    is_manual        INTEGER NOT NULL DEFAULT 0,  -- 1 = 手動新增
+    plate_index      INTEGER,                  -- 板片編號（多板列印）
+    plate_name       TEXT,                     -- 板片名稱
+    status           INTEGER                   -- 列印狀態：2=completed, 3=failed, 其他=in progress
 );
 ```
+
+> 手動任務的 `plate_index`、`plate_name`、`status` 皆為 NULL。
 
 #### print_task_filament
 ```sql
@@ -260,6 +266,9 @@ User-Agent: PrintFilamentTracker/1.0 (community; unofficial Bambu Lab integratio
 | `endTime` | `print_task.ended_at` | |
 | `costTime` | `print_task.duration_seconds` | 秒 |
 | `weight` | `print_task.total_weight_g` | 克 |
+| `status` | `print_task.status` | 整數：2=completed, 3=failed, 其他=in progress |
+| `plateIndex` | `print_task.plate_index` | 多板列印時的板片編號 |
+| `plateName` | `print_task.plate_name` | 板片名稱，去除空白後為空則存 NULL |
 | `deviceId` | 查 `printer.device_id` 取 `printer_id` | |
 | 完整物件 | `print_task.raw_json` | 序列化為 JSON 字串 |
 | `amsDetailMapping[i].position` | `print_task_filament.slot_id` | |
@@ -310,8 +319,8 @@ Browser/CLI
     │              └─ src/ingestion.py : ingest_raw_tasks(hits, db_path, covers_dir)
     │                      │
     │                      ├─ printer upsert (INSERT OR IGNORE on device_id)
-    │                      ├─ print_task INSERT OR IGNORE (on external_id)
-    │                      ├─ print_task_filament INSERT
+    │                      ├─ print_task UPSERT：新任務 INSERT；已存在任務更新 ended_at/duration/status 等可變欄位
+    │                      ├─ print_task_filament 批次同步（sync_task_filaments）：補齊 NULL slot；當雲端已提供真實 slot 資料時，刪除同一任務中 slot_id IS NULL 且 filament_spool_id IS NULL 的舊 fallback rows
     │                      └─ cover image download → data/covers/{external_id}.png（原子寫入 .tmp → .png）
     │
     └─ HTMX polling every 2s → /settings/sync/status fragment
@@ -378,6 +387,7 @@ app.register_blueprint(settings.bp)                       # prefix 定義於 blu
 | `/tasks/<id>/edit` | GET/POST | 編輯手動任務 |
 | `/tasks/<id>/delete` | POST | 刪除手動任務 |
 | `/spools/` | GET | Spool 列表 |
+| `/spools/<id>` | GET | Spool 詳情（用量統計與列印歷史） |
 | `/spools/new` | GET/POST | 新增 Spool |
 | `/spools/<id>/edit` | GET/POST | 編輯 Spool |
 | `/spools/<id>/delete` | POST | 刪除 Spool |
@@ -398,7 +408,12 @@ app.register_blueprint(settings.bp)                       # prefix 定義於 blu
 | `/mapping/<ptf_id>/material-edit` | GET | material inline 編輯表單（HTMX） |
 | `/mapping/<ptf_id>/material` | POST | 儲存 material 異動（HTMX） |
 | `/mapping/<ptf_id>/material-cancel` | GET | 取消 material 編輯（HTMX） |
+| `/mapping/<ptf_id>/detail-remap-form` | GET | 任務詳情頁重新對應表單（HTMX） |
+| `/mapping/<ptf_id>/detail-remap` | POST | 任務詳情頁重新對應（HTMX） |
+| `/mapping/<ptf_id>/detail-unmap` | POST | 任務詳情頁解除對應（HTMX） |
+| `/mapping/<ptf_id>/detail-row` | GET | 任務詳情頁耗材列 fragment（HTMX） |
 | `/analytics/` | GET | 分析頁面 |
+| `/analytics/day/<date>` | GET | 每日報告（任務圖庫、時間軸、耗材摘要） |
 | `/analytics/heatmap` | GET | 熱力圖 fragment（HTMX，按年份） |
 | `/settings/` | GET | 設定主頁 |
 | `/settings/login/form` | GET | 登入表單 fragment |
@@ -411,7 +426,8 @@ app.register_blueprint(settings.bp)                       # prefix 定義於 blu
 | `/settings/backup` | POST | 手動備份 |
 | `/settings/backup/status` | GET | 備份狀態 fragment（HTMX polling） |
 | `/settings/backup/config` | POST | 設定備份間隔與保留份數 |
-| `/settings/restore` | POST | 還原備份 |
+| `/settings/restore` | POST | 還原備份（還原前自動備份當前資料庫，需輸入確認字詞） |
+| `/settings/timezone` | POST | 設定時區偏移（UTC offset，分鐘） |
 | `/set-lang` | POST | 切換語言 |
 | `/covers/<filename>` | GET | 取得封面圖靜態檔案；雲端封面缺失時自動從 raw_json 重新下載（含 10 分鐘負快取） |
 
@@ -503,6 +519,27 @@ def inject_i18n():
 ```
 
 所有 template 皆可直接使用 `{{ t('key') }}`。
+
+### Jinja2 時區 Filter
+
+`create_app()` 依 `app_config` 中的 `display_tz_offset_minutes`（分鐘）動態注冊兩個 filter：
+
+```python
+# web/app.py
+tz_fmt, tz_d = _make_tz_filters(tz_offset_minutes)
+app.jinja_env.filters["tz_format"] = tz_fmt  # 回傳格式化字串
+app.jinja_env.filters["tz_date"]   = tz_d    # 只回傳日期部分
+```
+
+模板使用方式：
+
+```html
+{{ task.started_at | tz_format }}           {# → "2025-03-01 14:30" #}
+{{ task.started_at | tz_format("%Y/%m/%d") }} {# 自訂格式 #}
+{{ task.started_at | tz_date }}             {# → "2025-03-01" #}
+```
+
+UTC 偏移從 DB `app_config`（key: `display_tz_offset_minutes`）讀取，預設為 0（UTC）。使用者在設定頁變更時區後，`web/routes/settings.py` 的 `set_timezone()` 即時重新呼叫 `_make_tz_filters()` 更新 filter，無需重啟。
 
 ---
 
@@ -620,8 +657,9 @@ GET /covers/12345678.png  →  file_path.exists() == False
 
 ### HTMX 的使用邊界
 
-HTMX 僅用於：
-1. Mapping 頁面的 Inline 編輯（避免整頁重載破壞表格狀態）
-2. 設定頁的同步/備份狀態輪詢（long-polling 替代方案）
+HTMX 用於以下場景：
+1. **Mapping 頁面的 Inline 編輯**（避免整頁重載破壞表格狀態）：對應、解除對應、忽略、material 編輯、重新對應
+2. **任務詳情頁 Inline Spool Remap**（`/mapping/<id>/detail-*` 路由）：在任務詳情頁直接更換耗材對應，不必跳轉至 Mapping 頁面
+3. **設定頁的同步/備份狀態輪詢**（long-polling 替代方案）：每 2 秒輪詢 `/settings/sync/status`、`/settings/backup/status`
 
 其餘頁面均使用標準表單提交（Post-Redirect-Get 模式），降低複雜度。

@@ -11,6 +11,7 @@
 - [新增語言](#新增語言)
 - [新增資料庫欄位（Schema 遷移）](#新增資料庫欄位schema-遷移)
 - [新增 Web 路由](#新增-web-路由)
+- [使用 Jinja2 時區 Filter](#使用-jinja2-時區-filter)
 - [新增分析圖表](#新增分析圖表)
 - [新增 CLI 子指令](#新增-cli-子指令)
 - [圖片上傳與驗證](#圖片上傳與驗證)
@@ -350,6 +351,25 @@ def update_item(item_id):
 ```
 
 Fragment 模板不繼承 `base.html`，只包含一行 `<tr>` 或 `<div>`。
+
+---
+
+## 使用 Jinja2 時區 Filter
+
+模板中使用 `tz_format` / `tz_date` 顯示本地化時間：
+
+```html
+<!-- 格式化日期時間（預設 %Y-%m-%d %H:%M） -->
+{{ task.started_at | tz_format }}
+
+<!-- 自訂格式 -->
+{{ task.started_at | tz_format("%Y/%m/%d %H:%M") }}
+
+<!-- 只顯示日期（用於熱力圖、每日報告等） -->
+{{ task.started_at | tz_date }}
+```
+
+Filter 在 `create_app()` 時依 DB 設定的 `display_tz_offset_minutes`（分鐘）動態注冊，開發環境預設 UTC+0。更改時區設定後，`set_timezone()` 路由會即時呼叫 `_make_tz_filters()` 更新 filter；生產環境無需重啟。
 
 ---
 
